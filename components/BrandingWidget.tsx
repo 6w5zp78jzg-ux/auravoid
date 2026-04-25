@@ -1,95 +1,85 @@
 'use client';
-import React, { useRef, useState, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { Text3D, Center, Html } from '@react-three/drei';
+import React, { useRef, useMemo, Suspense } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Text3D, Center, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers'; 
 
-// --- 1. LINTERNA (Optimizado) ---
-function Flashlight({ isActive }: { isActive: boolean }) {
-    const lightRef = useRef<THREE.PointLight>(null);
-    const { mouse } = useThree();
-
-    useFrame(() => {
-        if (!lightRef.current || !isActive) return;
-        // Mapeo suave del ratón/toque sobre el panel
-        lightRef.current.position.set(mouse.x * 6, mouse.y * 4, 3.5); 
-    });
-
-    return (
-        <pointLight 
-            ref={lightRef} 
-            intensity={isActive ? 100 : 0} 
-            color="#ffffff" 
-            distance={25} 
-            decay={2}
-        />
-    );
-}
-
-// --- 2. FOCOS MÓVILES (Solo activos si se ven) ---
-function MovingSpotlights({ visible }: { visible: boolean }) {
+// --- 1. LUCES MÓVILES ---
+function MovingSpotlights({ isActive }: { isActive: boolean }) {
     const groupRef = useRef<THREE.Group>(null);
 
     useFrame((state) => {
-        if (!groupRef.current || !visible) return;
+        if (!groupRef.current || !isActive) return;
         const t = state.clock.getElapsedTime();
         groupRef.current.rotation.z = t * 0.5;
         groupRef.current.rotation.y = t * 0.2;
     });
 
     return (
-        <group ref={groupRef} visible={visible}>
-            <pointLight position={[4, 4, 2]} intensity={15} color="#ffffff" distance={12} />
-            <pointLight position={[-4, -4, 2]} intensity={15} color="#ffffff" distance={12} />
-            <pointLight position={[5, 0, 1]} intensity={10} color="#aaccff" distance={10} />
+        <group ref={groupRef}>
+            <pointLight position={[6, 4, 2]} intensity={isActive ? 35 : 0} color="#ffffff" distance={15} />
+            <pointLight position={[-6, -4, 2]} intensity={isActive ? 35 : 0} color="#ffffff" distance={15} />
+            <pointLight position={[0, 0, 3]} intensity={isActive ? 20 : 0} color="#aaccff" distance={12} />
         </group>
     );
 }
 
-// --- 3. OBSIDIANA PURA (Aumentada a tamaño Hero) ---
-function ObsidianText({ language, visible }: { language: string, visible: boolean }) {
-    const textRef = useRef<THREE.Group>(null);
-    const TEXTOS = {
-        es: { mainL1: "BRANDING", mainL2: "& PR", sub: "INGENIERIA DE PERCEPCION" },
-        en: { mainL1: "BRANDING", mainL2: "& PR", sub: "PERCEPTION ENGINEERING" }
-    };
-    const currentText = language === 'es' ? TEXTOS.es : TEXTOS.en;
-
-    const obsidianProps = {
-        color: "#000000",
-        metalness: 1.0,
-        roughness: 0.02, // Más pulido para que brille más
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.02,
-    };
+// --- 2. LINTERNA INTERACTIVA ---
+function InteractiveFlashlight({ isActive }: { isActive: boolean }) {
+    const lightRef = useRef<THREE.PointLight>(null);
 
     useFrame((state) => {
-        if(!textRef.current || !visible) return;
-        const t = state.clock.getElapsedTime();
-        textRef.current.rotation.y = Math.sin(t * 0.1) * 0.05;
+        if (!lightRef.current || !isActive) return;
+        const x = state.mouse.x * 8;
+        const y = state.mouse.y * 4;
+        lightRef.current.position.set(x, y, 3.5);
     });
 
+    return (
+        <pointLight 
+            ref={lightRef} 
+            intensity={isActive ? 95 : 0} 
+            color="#ffffff" 
+            distance={20} 
+            decay={1.5}
+        />
+    );
+}
+
+// --- 3. TEXTO DE OBSIDIANA ---
+function ObsidianText({ language, isActive }: { language: string; isActive: boolean }) {
+    const groupRef = useRef<THREE.Group>(null);
     const fontUrl = "https://unpkg.com/three/examples/fonts/helvetiker_bold.typeface.json";
 
+    const content = language === 'es' 
+        ? { main: "BRANDING\n& PR", sub: "INGENIERIA DE PERCEPCION" }
+        : { main: "BRANDING\n& PR", sub: "PERCEPTION ENGINEERING" };
+
+    useFrame((state) => {
+        if (!groupRef.current || !isActive) return;
+        groupRef.current.rotation.y = Math.sin(state.clock.getElapsedTime() * 0.2) * 0.05;
+    });
+
     return (
-        <group ref={textRef} position={[0, 0, 0.2]} visible={visible}>
+        <group ref={groupRef}>
             <Center top position={[0, 1.2, 0]}>
-                <Text3D font={fontUrl} size={1.2} height={0.3} curveSegments={12}>
-                    {currentText.mainL1}
-                    <meshPhysicalMaterial {...obsidianProps} />
+                <Text3D font={fontUrl} size={0.9} height={0.2} bevelEnabled bevelSize={0.03} bevelThickness={0.03}>
+                    {content.main}
+                    <meshPhysicalMaterial 
+                        color="#000000"
+                        metalness={0.2}
+                        roughness={0.05}
+                        clearcoat={1.0}
+                        clearcoatRoughness={0.05}
+                        reflectivity={1}
+                    />
                 </Text3D>
             </Center>
-            <Center top position={[0, -0.2, 0]}>
-                <Text3D font={fontUrl} size={1.2} height={0.3} curveSegments={12}>
-                    {currentText.mainL2}
-                    <meshPhysicalMaterial {...obsidianProps} />
-                </Text3D>
-            </Center>
-            <Center top position={[0, -1.8, 0]}>
-                <Text3D font={fontUrl} size={0.35} height={0.1}>
-                    {currentText.sub}
-                    <meshPhysicalMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+            <Center top position={[0, -1.5, 0]}>
+                <Text3D font={fontUrl} size={0.3} height={0.1}>
+                    {content.sub}
+                    <meshPhysicalMaterial color="#000000" roughness={0.3} metalness={0.1} />
                 </Text3D>
             </Center>
         </group>
@@ -99,42 +89,39 @@ function ObsidianText({ language, visible }: { language: string, visible: boolea
 // --- 4. PANEL PRINCIPAL ---
 export default function BrandingWidget({ isActive }: { isActive: boolean }) {
     const { language } = useLanguage();
-    const [isInteracting, setIsInteracting] = useState(false);
 
-    // --- REGLA DE ORO: NUNCA DEVOLVER NULL ---
+    const backgroundTexture = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024; canvas.height = 1024;
+        const ctx = canvas.getContext('2d')!;
+        const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 700);
+        grad.addColorStop(0, '#820620');   
+        grad.addColorStop(0.6, '#3d020e'); 
+        grad.addColorStop(1, '#000000');   
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1024, 1024);
+        return new THREE.CanvasTexture(canvas);
+    }, []);
 
     return (
-        <group 
-            onPointerOver={() => setIsInteracting(true)}
-            onPointerOut={() => setIsInteracting(false)}
-        >
-            {/* CAPA 1: EL FONDO HTML */}
-            <Html 
-                transform 
-                center 
-                distanceFactor={8} // 🚀 Tamaño Hero
-                position={[0, 0, -0.1]}
-                style={{
-                    opacity: isActive ? 1 : 0,
-                    pointerEvents: isActive ? 'auto' : 'none',
-                    transition: 'opacity 0.6s ease-in-out',
-                }}
-            >
-                <div className="relative w-[800px] h-[500px] border border-white/5 rounded-xl overflow-hidden pointer-events-none">
-                    <div 
-                        className="absolute inset-0 z-0" 
-                        style={{ background: 'radial-gradient(circle at 50% 50%, #820620 40%, #000000 100%)' }} 
-                    />
-                    <div className="absolute top-10 left-10 text-[14px] tracking-[4px] text-white/40 uppercase font-mono z-20">
-                        PR_LEGACY_CORE // V.O.I.D.
-                    </div>
-                </div>
-            </Html>
+        <group>
+            {/* 1. Fondo Burdeos */}
+            <mesh position={[0, 0, -0.2]}>
+                <planeGeometry args={[16.5, 9.5]} />
+                <meshBasicMaterial map={backgroundTexture} transparent opacity={isActive ? 1 : 0.3} />
+            </mesh>
 
-            {/* CAPA 2: ELEMENTOS 3D (Solo visibles y activos si isActive es true) */}
-            <ObsidianText language={language} visible={isActive} />
-            <Flashlight isActive={isActive && isInteracting} />
-            <MovingSpotlights visible={isActive} />
+            <MovingSpotlights isActive={isActive} />
+            <InteractiveFlashlight isActive={isActive} />
+
+            <Suspense fallback={null}>
+                <group position={[0, 0, 0.5]}>
+                    <ObsidianText language={language} isActive={isActive} />
+                </group>
+            </Suspense>
+
+            {/* 🚀 SOLUCIÓN AL ERROR: preset="city" es el valor válido que mejor queda */}
+            <Environment preset="city" />
         </group>
     );
 }
