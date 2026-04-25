@@ -91,7 +91,6 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
        }
    });
 
-   // --- EL CLIC INFALIBLE CORREGIDO ---
    const handlePointerUp = (e: any) => {
        if (dragDistance.current < 15) {
            window.dispatchEvent(new CustomEvent('open-service', { detail: index }));
@@ -124,19 +123,19 @@ export default function ServiceCylinder() {
        { titulo: language === 'es' ? "FÍSICO Y EVENTOS" : "PHYSICAL & EVENTS" }
    ];
 
-   // FÍSICA ORIGINAL RESTAURADA
    const [rotationY, setRotationY] = useState(0);
    const rotRef = useRef(0);
    const velocity = useRef(0);
    const isDragging = useRef(false);
-   const lastY = useRef(0);
-  
+   
+   // AHORA RASTREAMOS LA X (Horizontal)
+   const lastX = useRef(0);
    const dragDistance = useRef(0);
 
    useFrame(() => {
        if (!isDragging.current) {
            velocity.current *= 0.95;
-           rotRef.current -= (0.0015 + velocity.current);
+           rotRef.current -= (0.0015 + velocity.current); // Rotación automática constante
        } else {
            velocity.current *= 0.8;
        }
@@ -145,7 +144,8 @@ export default function ServiceCylinder() {
 
    const handlePointerDown = (e: any) => {
        isDragging.current = true;
-       lastY.current = e.clientY;
+       // Captura multi-dispositivo de la coordenada X
+       lastX.current = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
        velocity.current = 0;
        dragDistance.current = 0;
    };
@@ -156,19 +156,24 @@ export default function ServiceCylinder() {
 
    const handlePointerMove = (e: any) => {
        if (isDragging.current) {
-           const pixelDelta = e.clientY - lastY.current;
+           // Captura multi-dispositivo de la coordenada X
+           const currentX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
+           const pixelDelta = currentX - lastX.current;
+           
            dragDistance.current += Math.abs(pixelDelta);
           
-           const delta = pixelDelta * 0.008;
+           // Sensibilidad ajustada para el arrastre horizontal
+           const delta = pixelDelta * 0.005;
            velocity.current = delta;
-           rotRef.current -= delta;
-           lastY.current = e.clientY;
+           
+           // Usamos += para que gire orgánicamente siguiendo la dirección de tu dedo
+           rotRef.current += delta;
+           lastX.current = currentX;
        }
    };
 
    return (
        <group>
-           {/* PARTÍCULAS AISLADAS: Al estar fuera del grupo de abajo, el motor táctil no pierde tiempo calculando si las tocas o no. */}
            <Sparkles 
                count={300} 
                scale={[RADIUS * 2, 15, RADIUS * 2]} 
@@ -178,7 +183,6 @@ export default function ServiceCylinder() {
                color="#ffffff" 
            />
 
-           {/* GRUPO INTERACTIVO: Física 100% limpia y aislada */}
            <group
                onPointerDown={handlePointerDown}
                onPointerUp={handlePointerUp}
