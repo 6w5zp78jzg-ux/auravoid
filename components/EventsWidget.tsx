@@ -8,112 +8,95 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
     const groupRef = useRef<THREE.Group>(null);
     const { size } = useThree();
     
-    // --- ESTADO FÍSICO LÍQUIDO ---
+    // --- MOTOR FÍSICO LÍQUIDO ---
     const isDragging = useRef(false);
-    const pointerPos = useRef({ x: 0, y: 0 });
+    const lastPointer = useRef(new THREE.Vector2());
     const velocity = useRef(new THREE.Vector2(0, 0));
-    // Usamos un Cuaternión para rotación libre sin Gimbal Lock (omnidireccional)
-    const currentQuaternion = useRef(new THREE.Quaternion());
-    const rotationAxis = useRef(new THREE.Vector3());
+    const quaternion = useRef(new THREE.Quaternion());
 
-    const handlePointerDown = (e: any) => {
+    // Iniciar arrastre
+    const handleDown = (e: any) => {
         if (!isActive) return;
-        // 🚀 BLOQUEO DE RUEDA: Detiene el giro de la web para jugar con la bola
-        e.stopPropagation(); 
+        e.stopPropagation(); // 🚀 BLOQUEA EL GIRO DE LA RUEDA
         e.target.setPointerCapture(e.pointerId);
-        
         isDragging.current = true;
-        pointerPos.current = { x: e.clientX, y: e.clientY };
+        lastPointer.current.set(e.clientX, e.clientY);
         velocity.current.set(0, 0);
     };
 
-    const handlePointerMove = (e: any) => {
+    // Mover (Física de fluido)
+    const handleMove = (e: any) => {
         if (!isDragging.current || !isActive) return;
 
-        const deltaX = e.clientX - pointerPos.current.x;
-        const deltaY = e.clientY - pointerPos.current.y;
+        const dx = e.clientX - lastPointer.current.x;
+        const dy = e.clientY - lastPointer.current.y;
 
-        // Sensibilidad líquida
-        const sensitivity = 0.005;
-        velocity.current.set(deltaX * sensitivity, deltaY * sensitivity);
+        // Sensibilidad líquida adaptada al iPad
+        const sens = 0.008;
+        velocity.current.lerp(new THREE.Vector2(dx * sens, dy * sens), 0.2);
 
-        pointerPos.current = { x: e.clientX, y: e.clientY };
+        lastPointer.current.set(e.clientX, e.clientY);
     };
 
-    const handlePointerUp = (e: any) => {
+    const handleUp = (e: any) => {
         isDragging.current = false;
         if(e.target.releasePointerCapture) e.target.releasePointerCapture(e.pointerId);
     };
 
-    useFrame((state, delta) => {
+    useFrame((state) => {
         if (!groupRef.current) return;
 
-        // 🌊 CÁLCULO DE ROTACIÓN OMNIDIRECCIONAL
-        if (velocity.current.length() > 0.0001) {
-            // El eje de rotación es perpendicular a la dirección del movimiento del dedo
-            rotationAxis.current.set(velocity.current.y, velocity.current.x, 0).normalize();
-            
+        if (velocity.current.length() > 0.0005) {
+            // Eje de rotación perpendicular al movimiento (Omnidireccional)
+            const axis = new THREE.Vector3(velocity.current.y, velocity.current.x, 0).normalize();
             const angle = velocity.current.length();
-            const incrementalQuaternion = new THREE.Quaternion().setFromAxisAngle(
-                rotationAxis.current, 
-                angle
-            );
             
-            // Multiplicamos el cuaternión actual por el incremento
-            currentQuaternion.current.multiplyQuaternions(incrementalQuaternion, currentQuaternion.current);
+            const incrementalQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+            quaternion.current.multiplyQuaternions(incrementalQuat, quaternion.current);
             
-            // Fricción líquida (Inercia)
-            // Si el dedo no está tocando, la bola sigue girando y decae suavemente
+            // Fricción suave (Inercia)
             if (!isDragging.current) {
-                velocity.current.multiplyScalar(0.96); 
+                velocity.current.multiplyScalar(0.95);
             }
         }
 
-        // Aplicamos la rotación de forma suave (SLERP) para que se sienta fluido
-        groupRef.current.quaternion.slerp(currentQuaternion.current, 0.2);
+        // Aplicamos la rotación con suavizado tipo "mercurio"
+        groupRef.current.quaternion.slerp(quaternion.current, 0.15);
 
-        // Movimiento de flotación sutil adicional
+        // Flotación constante
         const t = state.clock.getElapsedTime();
-        groupRef.current.position.y = Math.sin(t * 0.5) * 0.15;
+        groupRef.current.position.y = Math.sin(t * 0.4) * 0.1;
     });
 
     return (
-        <group 
-            ref={groupRef} 
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-        >
+        <group ref={groupRef}>
+            {/* 🎯 EL COLISIONADOR: Una esfera invisible que captura TODO el toque */}
+            <mesh 
+                onPointerDown={handleDown}
+                onPointerMove={handleMove}
+                onPointerUp={handleUp}
+                onPointerCancel={handleUp}
+            >
+                <sphereGeometry args={[3, 16, 16]} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+
             <Environment preset="city" />
             
-            {/* NÚCLEO ORO */}
+            {/* JOYERÍA 3D */}
             <mesh scale={1.5}>
                 <icosahedronGeometry args={[1, 0]} />
-                <meshStandardMaterial 
-                    color="#c5a059" 
-                    metalness={1} 
-                    roughness={0.05} 
-                    emissive="#c5a059" 
-                    emissiveIntensity={0.15} 
-                />
+                <meshStandardMaterial color="#c5a059" metalness={1} roughness={0.05} emissive="#c5a059" emissiveIntensity={0.2} />
             </mesh>
             
-            {/* CORAZA CRISTAL LÍQUIDO */}
             <mesh scale={2.4}>
                 <icosahedronGeometry args={[1, 1]} />
                 <meshPhysicalMaterial 
-                    transmission={1} 
-                    thickness={2.5} 
-                    roughness={0.01} 
-                    ior={1.5} 
-                    color="#ffffff" 
-                    transparent 
-                    opacity={isActive ? 1 : 0.3} 
+                    transmission={1} thickness={2.5} roughness={0.01} ior={1.5} color="#ffffff" 
+                    transparent opacity={isActive ? 1 : 0.3} 
                 />
             </mesh>
 
-            {/* WIREFRAME DE PRECISIÓN */}
             <mesh scale={2.42}>
                 <icosahedronGeometry args={[1, 1]} />
                 <meshStandardMaterial color="#c5a059" metalness={1} wireframe />
@@ -124,7 +107,7 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
 
 export default function EventsWidget({ isActive }: { isActive: boolean }) {
     
-    // Fondo claro Perla (Textura de alto rendimiento)
+    // FONDO CLARO (Perla de alto rendimiento)
     const pearlTexture = useMemo(() => {
         const canvas = document.createElement('canvas');
         canvas.width = 1024; canvas.height = 1024;
@@ -144,18 +127,18 @@ export default function EventsWidget({ isActive }: { isActive: boolean }) {
 
     return (
         <group>
-            {/* LUCES DINÁMICAS */}
-            <pointLight position={[5, 5, 5]} intensity={isActive ? 65 : 0} color="#ffffff" />
+            {/* LUCES */}
+            <pointLight position={[5, 5, 5]} intensity={isActive ? 60 : 0} color="#ffffff" />
             <ambientLight intensity={isActive ? 0.7 : 0} />
 
-            {/* FONDO: No detiene eventos (Permite girar la rueda) */}
+            {/* FONDO: No captura eventos para que la rueda pueda girar */}
             <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
                 <meshBasicMaterial map={pearlTexture} transparent opacity={isActive ? 1 : 0.4} />
             </mesh>
 
-            {/* LA JOYA: Sí detiene eventos (Física de arrastre) */}
-            <group position={[0, 0, 1.4]}>
+            {/* LA JOYA: Sí captura eventos (Z adelantado) */}
+            <group position={[0, 0, 1.5]}>
                 <LuxuryGeometry isActive={isActive} />
             </group>
             
