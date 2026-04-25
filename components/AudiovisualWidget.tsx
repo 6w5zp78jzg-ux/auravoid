@@ -13,31 +13,52 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
     start: true,
   });
 
-  // 🚀 LÓGICA DE ADAPTACIÓN TOTAL (COVER)
+  // 🚀 LÓGICA DE AJUSTE "COVER" INFALIBLE
   useEffect(() => {
-    if (texture) {
-      // Configuramos la textura para que se pueda repetir/estirar
-      texture.matrixAutoUpdate = false;
-      
-      const planeAspect = 16.5 / 9.5; // Aspecto de tu marco
-      const videoAspect = 16 / 9;    // Aspecto estándar del vídeo
-      
-      // Calculamos cuánto debemos "zoomear" para llenar los huecos laterales
-      const ratio = planeAspect / videoAspect;
+    if (texture && texture.image) {
+      const video = texture.image;
 
-      if (ratio > 1) {
-        // El marco es más ancho que el vídeo: escalamos el ancho (U)
-        texture.matrix.setUvTransform(0, 0, 1 / ratio, 1, 0, 0.5, 0.5);
+      const updateTexture = () => {
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const planeAspect = 16.5 / 9.5;
+
+        // Reset de la textura
+        texture.matrixAutoUpdate = false;
+        
+        // Calculamos el factor de escala
+        let scaleX = 1;
+        let scaleY = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (videoAspect > planeAspect) {
+          // El vídeo es más ancho que el marco: recortamos laterales
+          scaleX = planeAspect / videoAspect;
+          offsetX = (1 - scaleX) / 2;
+        } else {
+          // El vídeo es más alto que el marco: recortamos arriba/abajo
+          scaleY = videoAspect / planeAspect;
+          offsetY = (1 - scaleY) / 2;
+        }
+
+        // Aplicamos la transformación "Cover"
+        texture.matrix.setUvTransform(offsetX, offsetY, scaleX, scaleY, 0, 0.5, 0.5);
+      };
+
+      // Si el vídeo ya cargó los datos, actualizamos; si no, esperamos al evento
+      if (video.readyState >= 1) {
+        updateTexture();
       } else {
-        // El marco es más alto que el vídeo: escalamos el alto (V)
-        texture.matrix.setUvTransform(0, 0, 1, ratio, 0, 0.5, 0.5);
+        video.addEventListener('loadedmetadata', updateTexture);
       }
+      
+      return () => video.removeEventListener('loadedmetadata', updateTexture);
     }
   }, [texture]);
 
   return (
     <mesh ref={meshRef}>
-      {/* 📏 Usamos el tamaño exacto del marco para que no queden huecos */}
+      {/* Usamos el tamaño exacto del marco */}
       <planeGeometry args={[16.5, 9.5]} />
       <meshBasicMaterial 
         map={texture} 
@@ -87,15 +108,6 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
           <div className="absolute top-12 left-12 flex items-center gap-4 bg-black/40 px-6 py-2 rounded-sm backdrop-blur-md">
             <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_#ef4444]" />
             <span className="text-2xl font-bold text-red-500 tracking-tighter">REC 00:12:45:22</span>
-          </div>
-
-          {/* HUD INFERIOR */}
-          <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between px-12">
-            <div className="flex flex-col gap-1">
-                <span className="text-[12px] text-white/50 tracking-[5px] uppercase font-bold">STORAGE: 128GB // RAW</span>
-                <span className="text-[10px] text-white/30 tracking-[3px]">AURA & VOID // OPTICAL_UNIT_01</span>
-            </div>
-            <span className="text-[12px] text-white/50 tracking-[5px]">24 FPS // 800 ISO</span>
           </div>
 
           <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] pointer-events-none" />
