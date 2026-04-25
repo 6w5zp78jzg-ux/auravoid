@@ -10,18 +10,17 @@ import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
 const WIDGETS_DATA = [
-  { id: 'av', Component: AudiovisualWidget },
-  { id: 'mk', Component: MarketingWidget },
-  { id: 'ai', Component: IARobotTracker },
-  { id: 'br', Component: BrandingWidget },
-  { id: 'ev', Component: EventsWidget }
+  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' },
+  { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
+  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
+  { id: 'br', Component: BrandingWidget, color: '#ffff00' },
+  { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
 export default function ServiceWheelContent() {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
 
-   // Física ultra-simple para asegurar el giro
    const rotationRef = useRef(0);
    const isDragging = useRef(false);
    const previousX = useRef(0);
@@ -59,26 +58,29 @@ export default function ServiceWheelContent() {
    return (
        <group 
           ref={groupRef} 
-          position={[0, 0, 0]} // 🚀 CENTRADO ABSOLUTO PARA PRUEBA
+          position={[0, 5, 0]} // 🚀 POSICIÓN DE SEGURIDAD
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
        >
-           {/* Malla invisible para poder tocar en cualquier sitio */}
-           <mesh visible={false}>
-               <sphereGeometry args={[20, 16, 16]} />
-           </mesh>
-
            {WIDGETS_DATA.map((widget, i) => {
                const angle = (i / 5) * Math.PI * 2;
-               const radius = 12; 
+               const radius = 8; // 🚀 Radio más corto para que entre en cámara
                const isFront = i === activeIndex;
 
                return (
                    <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
-                       {/* 🚀 HEMOS QUITADO EL PANEL NEGRO PARA QUE NO TAPE NADA */}
-                       <widget.Component isActive={isFront} />
+                       
+                       {/* 🏗️ ESTRUCTURA DE REFERENCIA (Caja blanca para saber dónde estamos) */}
+                       <mesh>
+                           <boxGeometry args={[10, 6, 0.1]} />
+                           <meshStandardMaterial color="white" wireframe />
+                       </mesh>
+
+                       <group position={[0, 0, 0.5]}>
+                           <widget.Component isActive={isFront} />
+                       </group>
                    </group>
                );
            })}
