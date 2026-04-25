@@ -2,16 +2,77 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&display=swap');
 @import "tailwindcss";
 
-body { 
-    margin: 0; 
-    background: #050505 !important; 
-    color: white; 
-    font-family: 'Cinzel', serif; 
-    /* ELIMINAMOS el overflow: hidden que mataba el scroll */
-    overflow-x: hidden; 
-    overflow-y: auto; 
-    
-    user-select: none; 
-    -webkit-user-select: none;
-    touch-action: manipulation; /* Permite scroll natural */
+:root {
+  --background: #050505;
+  --foreground: #ffffff;
+}
+
+/* 1. RESET Y CONFIGURACIÓN BASE */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--background) !important;
+  color: var(--foreground);
+  font-family: 'Cinzel', serif;
+  
+  /* 🚀 EL SECRETO DE ACTIVE THEORY: 
+     Bloqueamos el scroll real para que ScrollControls (Drei) gestione su propio scroll virtual.
+     Si ponemos 'overflow-y: auto', tendrías dos scrolls peleándose. 
+  */
+  overflow: hidden; 
+  
+  /* Optimizaciones de renderizado */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 2. PROTECCIÓN DE INTERFAZ */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  /* 'none' evita que el navegador interfiera con los gestos táctiles del 3D */
+  touch-action: none; 
+}
+
+/* 3. TIPOGRAFÍAS SECUNDARIAS */
+.font-montserrat {
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* 4. OCULTAR SCROLLBARS (Para limpieza visual absoluta) */
+/* Chrome, Safari y Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* IE, Edge y Firefox */
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* 5. FIX PARA EL CANVAS */
+canvas {
+  display: block;
+  /* Asegura que el canvas no se mueva del sitio al scrollear virtualmente */
+  position: fixed; 
+  top: 0;
+  left: 0;
+  outline: none;
+}
+
+/* 6. CLASES DE APOYO PARA WIDGETS */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
