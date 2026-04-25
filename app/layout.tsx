@@ -1,8 +1,5 @@
 import './globals.css';
-import { Inter } from 'next/font/google';
 import { Providers } from '@/components/Providers'; 
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: 'AURA & VOID',
@@ -16,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body style={{ margin: 0, background: 'black' }}>
         <Providers>
           {children}
         </Providers>
