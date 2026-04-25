@@ -1,7 +1,7 @@
 'use client';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, SpotLight } from '@react-three/drei';
+import { Edges, SpotLight, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
@@ -19,7 +19,6 @@ const WIDGETS_DATA = [
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-// --- ESTRUCTURA DEL PANEL (SÓLIDA E IMPENETRABLE) ---
 function PanelFrame({ color, isFront }: { color: string, isFront: boolean }) {
    const W = 16.5; 
    const H = 9.5;
@@ -27,25 +26,16 @@ function PanelFrame({ color, isFront }: { color: string, isFront: boolean }) {
 
    return (
        <mesh geometry={geometry}>
-           {/* Placa base negra SÓLIDA. Cero transparencias para evitar ver el fondo */}
-           <meshStandardMaterial 
-               color="#050505" 
-               roughness={0.9} 
-               metalness={0.5} 
-           />
-           {/* Líneas de Neón del color del servicio */}
+           <meshStandardMaterial color="#050505" roughness={0.9} metalness={0.5} />
            <Edges scale={1.002} threshold={15} color={color} transparent opacity={isFront ? 1 : 0.4} />
        </mesh>
    );
 }
 
 export default function ServiceWheelContent() {
-   const { language } = useLanguage();
    const groupRef = useRef<THREE.Group>(null);
-  
    const [activeIndex, setActiveIndex] = useState(0);
 
-   // --- FÍSICA DE ARRASTRE ---
    const isDragging = useRef(false);
    const previousX = useRef(0);
    const velocity = useRef(0);
@@ -69,15 +59,11 @@ export default function ServiceWheelContent() {
    const handlePointerUp = () => {
        if (!isDragging.current) return;
        isDragging.current = false;
-
-       // Snap al panel exacto
        const faceAngle = (Math.PI * 2) / 5;
        const closestFace = Math.round(targetRotation.current / faceAngle);
        targetRotation.current = closestFace * faceAngle;
-
        let index = (-closestFace) % 5;
        if (index < 0) index += 5; 
-       
        if (index !== activeIndex) setActiveIndex(index);
    };
 
@@ -91,35 +77,49 @@ export default function ServiceWheelContent() {
    });
 
    return (
-       // Elevado a Y=5 para que no pise tu logo inferior
        <group
            ref={groupRef}
-           position={[0, 5, 0]} 
+           position={[0, 6, 0]} // Subido un poco más para máxima distancia del logo
            onPointerDown={handlePointerDown}
            onPointerMove={handlePointerMove}
            onPointerUp={handlePointerUp}
            onPointerLeave={handlePointerUp}
        >
-           <SpotLight position={[0, 0, 10]} angle={0.5} penumbra={1} intensity={2} color="#ffffff" />
+           <SpotLight position={[0, 0, 15]} angle={0.5} intensity={5} color="#ffffff" />
 
            {WIDGETS_DATA.map((widget, i) => {
-               const radius = 11.35; 
+               const radius = 12; // Radio hero
                const angle = (i / 5) * Math.PI * 2;
-               const x = Math.sin(angle) * radius;
-               const z = Math.cos(angle) * radius;
-               
                const isFront = i === activeIndex;
 
                return (
-                   <group key={widget.id} position={[x, 0, z]} rotation={[0, angle, 0]}>
+                   <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
                        
-                       {/* 1. PLACA BASE SÓLIDA */}
                        <PanelFrame color={widget.color} isFront={isFront} />
 
-                       {/* 2. TUS WIDGETS (Siempre renderizados y adelantados a Z=0.5 para que se vean perfectos) */}
-                       <group position={[0, 0, 0.5]}> 
-                           <widget.Component isActive={isFront} />
-                       </group>
+                       {/* IMPORTANTE: Usamos el componente <Html> directamente aquí para envolver tu widget.
+                         Forzamos un contenedor con dimensiones fijas que coincidan con el panel (16x9 aprox).
+                       */}
+                       <Html
+                         transform
+                         distanceFactor={10}
+                         position={[0, 0, 0.25]}
+                         occlude={false} // Para que no desaparezca si algo se cruza
+                         style={{
+                           width: '800px',  // Dimensión base para el CSS interno
+                           height: '500px',
+                           display: 'flex',
+                           alignItems: 'center',
+                           justifyContent: 'center',
+                           pointerEvents: isFront ? 'auto' : 'none',
+                           opacity: isFront ? 1 : 0, // Solo mostramos el del frente para salvar Safari
+                           transition: 'opacity 0.5s ease'
+                         }}
+                       >
+                           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                             <widget.Component isActive={isFront} />
+                           </div>
+                       </Html>
 
                    </group>
                );
