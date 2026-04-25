@@ -1,41 +1,5 @@
 'use client';
-import React, { useRef, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { useVideoTexture, PerspectiveCamera } from '@react-three/drei';
-import * as THREE from 'three';
-
-function CinemaScreen({ videoUrl }: { videoUrl: string }) {
-    const meshRef = useRef<THREE.Mesh>(null);
-    const texture = useVideoTexture(videoUrl, {
-        muted: true,
-        loop: true,
-        start: true
-    });
-
-    // 🚀 AJUSTE DE ESCALA: Forzamos a la textura a comportarse como "cover"
-    // Esto evita que se vean bordes negros o que el vídeo no llegue a las esquinas
-    texture.matrixAutoUpdate = false;
-    const aspect = 16 / 9; // El aspecto de tu vídeo
-    const screenAspect = 3.5 / 2; // El aspecto de nuestro marco visual
-    texture.matrix.setUvTransform(0, 0, 1, 1, 0, 0.5, 0.5);
-
-    useFrame((state) => {
-        if (!meshRef.current) return;
-        // Inclinación suave para dar profundidad
-        const x = (state.mouse.x * Math.PI) / 20;
-        const y = (state.mouse.y * Math.PI) / 20;
-        meshRef.current.rotation.y = THREE.MathUtils.lerp(meshRef.current.rotation.y, x, 0.1);
-        meshRef.current.rotation.x = THREE.MathUtils.lerp(meshRef.current.rotation.x, -y, 0.1);
-    });
-
-    return (
-        <mesh ref={meshRef}>
-            {/* 🚀 PLANO A MEDIDA: Ajustado para llenar el widget */}
-            <planeGeometry args={[4.2, 2.4]} /> 
-            <meshBasicMaterial map={texture} toneMapped={false} />
-        </mesh>
-    );
-}
+import React from 'react';
 
 export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
     const videoPath = "/video/alpha.mp4";
@@ -45,7 +9,7 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
     return (
         <div className="relative w-full h-[350px] mb-12 bg-black border border-white/10 rounded-lg overflow-hidden group shadow-2xl">
             
-            {/* CAPA DE INTERFAZ (Encima del video) */}
+            {/* --- TU CAPA DE INTERFAZ INTACTA (Encima del video) --- */}
             <div className="absolute inset-0 z-20 pointer-events-none">
                 {/* Esquineras de cámara */}
                 <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-white/40" />
@@ -60,20 +24,27 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
                 </div>
             </div>
 
-            {/* UI: REC Y CÓDIGO DE TIEMPO */}
+            {/* --- TU UI: REC Y CÓDIGO DE TIEMPO INTACTO --- */}
             <div className="absolute top-8 left-8 z-30 flex items-center gap-3 font-mono text-[9px] text-red-500 font-bold bg-black/40 px-3 py-1 rounded-sm backdrop-blur-md">
                 <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
                 <span>REC 00:12:45:22</span>
             </div>
 
-            <Canvas dpr={[1, 2]} className="z-10">
-                <PerspectiveCamera makeDefault position={[0, 0, 3]} />
-                <Suspense fallback={null}>
-                    <CinemaScreen videoUrl={videoPath} />
-                </Suspense>
-            </Canvas>
+            {/* 🚀 LA SOLUCIÓN DE RENDIMIENTO: 
+                Reemplazamos el <Canvas> anidado por un video HTML puro.
+                Al incrustarse en el Pentágono con <Html transform>, este vídeo 
+                se inclinará y girará en el espacio 3D de forma natural.
+            */}
+            <video 
+                src={videoPath}
+                autoPlay 
+                loop 
+                muted 
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover z-10 scale-105"
+            />
 
-            {/* Efecto de viñeta para dar profundidad */}
+            {/* --- Efecto de viñeta para dar profundidad (INTACTO) --- */}
             <div className="absolute inset-0 z-15 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]" />
         </div>
     );
