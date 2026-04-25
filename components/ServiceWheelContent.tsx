@@ -1,6 +1,6 @@
 'use client';
 import React, { useRef, useState, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -21,51 +21,69 @@ const WIDGETS_DATA = [
 export default function ServiceWheelContent() {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
-   const { size } = useThree(); // Para normalizar el movimiento
 
    const isDragging = useRef(false);
    const rotationRef = useRef(0);
    const velocity = useRef(0);
    const previousX = useRef(0);
+   const lastMoveTime = useRef(0);
 
    const faceAngle = (Math.PI * 2) / 5;
 
-   // EVENTOS REFORZADOS
+   // --- MANEJO DE EVENTOS (MEJORADO) ---
    const onPointerDown = (e: any) => {
+       // Esto evita que otros elementos "roben" el click
        e.stopPropagation();
+       (e.target as HTMLElement).setPointerCapture(e.pointerId);
+       
        isDragging.current = true;
        previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+       velocity.current = 0;
+       lastMoveTime.current = performance.now();
    };
 
    const onPointerMove = (e: any) => {
        if (!isDragging.current) return;
+       
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+       const now = performance.now();
        const deltaX = currentX - previousX.current;
+       const deltaTime = now - lastMoveTime.current;
+
+       // Sensibilidad táctil premium
+       const sensitivity = 0.006;
+       rotationRef.current += deltaX * sensitivity;
        
-       // Inyectamos movimiento directamente
-       const sensitivity = 0.01;
-       velocity.current = deltaX * sensitivity;
-       rotationRef.current += velocity.current;
-       
+       if (deltaTime > 0) {
+           velocity.current = (deltaX * sensitivity) / (deltaTime / 16);
+       }
+
        previousX.current = currentX;
+       lastMoveTime.current = now;
    };
 
-   const onPointerUp = () => {
+   const onPointerUp = (e: any) => {
        isDragging.current = false;
+       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
    };
 
    useFrame(() => {
        if (!groupRef.current) return;
 
        if (!isDragging.current) {
-           velocity.current *= 0.95; // Fricción
+           // Inercia
            rotationRef.current += velocity.current;
+           velocity.current *= 0.95; // Fricción
 
-           // SNAP Magnético
+           // Snap Magnético (Solo cuando se frena)
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
+           const diff = targetSnap - rotationRef.current;
+           
+           if (Math.abs(velocity.current) < 0.05) {
+               rotationRef.current += diff * 0.1;
+           }
 
-           // Calcular el índice
+           // Calcular índice activo
            let index = Math.round(-rotationRef.current / faceAngle) % 5;
            if (index < 0) index += 5;
            if (index !== activeIndex) setActiveIndex(index);
@@ -77,28 +95,38 @@ export default function ServiceWheelContent() {
    return (
        <group 
           ref={groupRef} 
-          position={[0, 10, 0]} // Bien arriba
+          position={[0, 8.5, 0]} 
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerOut={onPointerUp}
+          onPointerCancel={onPointerUp}
        >
+           {/* 🛡️ ÁREA DE CAPTURA INVISIBLE: Asegura que el giro funcione siempre */}
+           <mesh visible={false}>
+               <cylinderGeometry args={[14, 14, 10, 20]} />
+           </mesh>
+
            {WIDGETS_DATA.map((widget, i) => {
                const angle = (i / 5) * Math.PI * 2;
-               const radius = 13;
+               
+               // 📐 RADIO MONOLÍTICO: 11.35 hace que los bordes se toquen perfectamente
+               const radius = 11.35; 
                const isFront = i === activeIndex;
 
                return (
-                   <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
-                       
-                       {/* PLACA BASE SÓLIDA PARA QUE SE VEA ALGO SIEMPRE */}
+                   <group 
+                      key={widget.id} 
+                      position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} 
+                      rotation={[0, angle, 0]}
+                   >
+                       {/* ESTRUCTURA FÍSICA (Chasis) */}
                        <mesh>
                            <boxGeometry args={[16.5, 9.5, 0.5]} />
-                           <meshStandardMaterial color="#050505" metalness={0.8} roughness={0.2} />
-                           <Edges color={widget.color} threshold={15} />
+                           <meshStandardMaterial color="#020202" metalness={0.9} roughness={0.4} />
+                           <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.2} />
                        </mesh>
 
-                       {/* EL WIDGET (Aquí está el problema probable) */}
+                       {/* EL WIDGET (Ya corregido para no devolver null) */}
                        <group position={[0, 0, 0.3]}>
                            <widget.Component isActive={isFront} />
                        </group>
