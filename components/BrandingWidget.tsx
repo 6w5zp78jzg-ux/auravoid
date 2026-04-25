@@ -8,7 +8,6 @@ import { useLanguage } from './Providers';
 // --- 1. LUCES MÓVILES ---
 function MovingSpotlights({ isActive }: { isActive: boolean }) {
     const groupRef = useRef<THREE.Group>(null);
-
     useFrame((state) => {
         if (!groupRef.current || !isActive) return;
         const t = state.clock.getElapsedTime();
@@ -18,9 +17,9 @@ function MovingSpotlights({ isActive }: { isActive: boolean }) {
 
     return (
         <group ref={groupRef}>
-            <pointLight position={[6, 4, 2]} intensity={isActive ? 35 : 0} color="#ffffff" distance={15} />
-            <pointLight position={[-6, -4, 2]} intensity={isActive ? 35 : 0} color="#ffffff" distance={15} />
-            <pointLight position={[0, 0, 3]} intensity={isActive ? 20 : 0} color="#aaccff" distance={12} />
+            <pointLight position={[6, 4, 2]} intensity={isActive ? 40 : 0} color="#ff0000" distance={15} />
+            <pointLight position={[-6, -4, 2]} intensity={isActive ? 40 : 0} color="#ffffff" distance={15} />
+            <pointLight position={[0, 0, 4]} intensity={isActive ? 25 : 0} color="#ffffff" distance={10} />
         </group>
     );
 }
@@ -28,18 +27,15 @@ function MovingSpotlights({ isActive }: { isActive: boolean }) {
 // --- 2. LINTERNA INTERACTIVA ---
 function InteractiveFlashlight({ isActive }: { isActive: boolean }) {
     const lightRef = useRef<THREE.PointLight>(null);
-
     useFrame((state) => {
         if (!lightRef.current || !isActive) return;
-        const x = state.mouse.x * 8;
-        const y = state.mouse.y * 4;
-        lightRef.current.position.set(x, y, 3.5);
+        lightRef.current.position.set(state.mouse.x * 8, state.mouse.y * 4, 3.5);
     });
 
     return (
         <pointLight 
             ref={lightRef} 
-            intensity={isActive ? 95 : 0} 
+            intensity={isActive ? 110 : 0} 
             color="#ffffff" 
             distance={20} 
             decay={1.5}
@@ -68,16 +64,16 @@ function ObsidianText({ language, isActive }: { language: string; isActive: bool
                     {content.main}
                     <meshPhysicalMaterial 
                         color="#000000"
-                        metalness={0.2}
-                        roughness={0.05}
+                        metalness={0.4}
+                        roughness={0.02}
                         clearcoat={1.0}
-                        clearcoatRoughness={0.05}
+                        clearcoatRoughness={0.02}
                         reflectivity={1}
                     />
                 </Text3D>
             </Center>
             <Center top position={[0, -1.5, 0]}>
-                <Text3D font={fontUrl} size={0.3} height={0.1}>
+                <Text3D font={fontUrl} size={0.28} height={0.1}>
                     {content.sub}
                     <meshPhysicalMaterial color="#000000" roughness={0.3} metalness={0.1} />
                 </Text3D>
@@ -90,38 +86,49 @@ function ObsidianText({ language, isActive }: { language: string; isActive: bool
 export default function BrandingWidget({ isActive }: { isActive: boolean }) {
     const { language } = useLanguage();
 
+    // 🎨 Creación de la textura con colores más vivos para evitar que parezca negro
     const backgroundTexture = useMemo(() => {
         const canvas = document.createElement('canvas');
-        canvas.width = 1024; canvas.height = 1024;
+        canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d')!;
-        const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 700);
-        grad.addColorStop(0, '#820620');   
-        grad.addColorStop(0.6, '#3d020e'); 
-        grad.addColorStop(1, '#000000');   
+        
+        // Degradado Burdeos -> Rojo Pasión -> Negro
+        const grad = ctx.createRadialGradient(256, 256, 0, 256, 256, 350);
+        grad.addColorStop(0, '#b3092c');   // Rojo más brillante en el centro
+        grad.addColorStop(0.5, '#4d0312'); // Burdeos profundo
+        grad.addColorStop(1, '#000000');   // Negro absoluto
+        
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 1024, 1024);
-        return new THREE.CanvasTexture(canvas);
+        ctx.fillRect(0, 0, 512, 512);
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
     }, []);
 
     return (
         <group>
-            {/* 1. Fondo Burdeos */}
-            <mesh position={[0, 0, -0.2]}>
+            <Environment preset="city" />
+
+            {/* 🛑 EL FONDO: Posicionado en Z=0 para que no sea tapado por el chasis */}
+            <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
-                <meshBasicMaterial map={backgroundTexture} transparent opacity={isActive ? 1 : 0.3} />
+                <meshBasicMaterial 
+                    map={backgroundTexture} 
+                    transparent={false} // 👈 Lo hacemos opaco para que no se vea el Voronoi
+                    opacity={isActive ? 1 : 0.4} 
+                />
             </mesh>
 
-            <MovingSpotlights isActive={isActive} />
-            <InteractiveFlashlight isActive={isActive} />
-
-            <Suspense fallback={null}>
-                <group position={[0, 0, 0.5]}>
+            {/* Luces y Texto adelantados para que floten sobre el rojo */}
+            <group position={[0, 0, 0.8]}>
+                <MovingSpotlights isActive={isActive} />
+                <InteractiveFlashlight isActive={isActive} />
+                
+                <Suspense fallback={null}>
                     <ObsidianText language={language} isActive={isActive} />
-                </group>
-            </Suspense>
-
-            {/* 🚀 SOLUCIÓN AL ERROR: preset="city" es el valor válido que mejor queda */}
-            <Environment preset="city" />
+                </Suspense>
+            </group>
         </group>
     );
 }
