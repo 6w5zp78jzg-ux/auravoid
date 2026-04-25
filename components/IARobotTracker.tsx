@@ -1,133 +1,140 @@
 'use client';
 import React, { useRef, useMemo, Suspense } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, Float, Environment, Stars } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import { useGLTF, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- 1. MODELO DEL ROBOT (Cuello y Cabeza reactivos) ---
+// --- 1. PARTÍCULAS DE TÚNEL (Locales del panel) ---
+function CyberTunnel({ isActive }: { isActive: boolean }) {
+    const pointsRef = useRef<THREE.Points>(null);
+    const count = 2000;
+
+    const [positions, sizes] = useMemo(() => {
+        const pos = new Float32Array(count * 3);
+        const s = new Float32Array(count);
+        for (let i = 0; i < count; i++) {
+            // Efecto de anillo/túnel
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 2 + Math.random() * 5; 
+            pos[i * 3 + 0] = Math.cos(angle) * radius;
+            pos[i * 3 + 1] = Math.sin(angle) * radius;
+            pos[i * 3 + 2] = Math.random() * -15; 
+            s[i] = Math.random();
+        }
+        return [pos, s];
+    }, [count]);
+
+    useFrame((state, delta) => {
+        if (!pointsRef.current || !isActive) return;
+        const attr = pointsRef.current.geometry.getAttribute('position') as THREE.BufferAttribute;
+
+        for (let i = 0; i < count; i++) {
+            let z = attr.getZ(i);
+            z += delta * 5; // Velocidad del túnel
+            if (z > 5) z = -15; // Reinicio al fondo
+            attr.setZ(i, z);
+        }
+        attr.needsUpdate = true;
+        // Rotación leve del túnel completo
+        pointsRef.current.rotation.z += delta * 0.1;
+    });
+
+    return (
+        <points ref={pointsRef}>
+            <bufferGeometry>
+                <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+            </bufferGeometry>
+            <pointsMaterial
+                size={0.06}
+                color="#00ffff"
+                transparent
+                opacity={isActive ? 0.6 : 0}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+            />
+        </points>
+    );
+}
+
+// --- 2. MODELO ROBOT ---
 function RobotModel({ isActive }: { isActive: boolean }) {
-    const { scene } = useGLTF('/robot_optimus.glb'); 
+    const { scene } = useGLTF('/robot_optimus.glb');
     const groupRef = useRef<THREE.Group>(null);
 
     useFrame((state) => {
         if (!groupRef.current || !isActive) return;
-        
-        // El robot sigue sutilmente el movimiento del ratón/dedo
-        const targetRotationY = state.mouse.x * (Math.PI / 10); 
-        const targetRotationX = -state.mouse.y * (Math.PI / 20); 
-        
-        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotationY, 0.1);
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetRotationX, 0.1);
-        
-        // Flotación sutil de respiración
-        const t = state.clock.getElapsedTime();
-        groupRef.current.position.y = -2.5 + Math.sin(t * 0.5) * 0.1;
+        // Seguimiento suave del cursor
+        const x = state.mouse.x * 0.4;
+        const y = -state.mouse.y * 0.2;
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, x, 0.1);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, y, 0.1);
     });
 
     return (
-        <group ref={groupRef} position={[0, -2.5, 0]}> 
-            {/* Escala aumentada para que el busto llene el marco */}
-            <primitive object={scene} scale={3.5} /> 
+        <group ref={groupRef} position={[0, -2.8, 0]}>
+            <primitive object={scene} scale={3.8} />
         </group>
     );
 }
 
-// --- 2. EL TÚNEL DE PARTÍCULAS (Integrado) ---
-function Starfield({ isActive }: { isActive: boolean }) {
-    return (
-        <group scale={1.5}>
-            <Stars 
-                radius={10} 
-                depth={50} 
-                count={2000} 
-                factor={4} 
-                saturation={0} 
-                fade 
-                speed={isActive ? 2 : 0.5} 
-            />
-        </group>
-    );
-}
-
-// --- 3. COMPONENTE PRINCIPAL ---
+// --- 3. WIDGET PRINCIPAL ---
 export default function IARobotTracker({ isActive }: { isActive: boolean }) {
     
-    // Generamos el fondo tecnológico (Azul profundo a Negro)
-    const techBackground = useMemo(() => {
+    // Fondo semitransparente para dejar ver las partículas globales de atrás
+    const techBg = useMemo(() => {
         const canvas = document.createElement('canvas');
-        canvas.width = 1024; canvas.height = 1024;
+        canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 800);
-            grad.addColorStop(0, '#0f172a'); // Slate 900
-            grad.addColorStop(1, '#000000');
+            const grad = ctx.createRadialGradient(256, 256, 0, 256, 256, 400);
+            grad.addColorStop(0, 'rgba(15, 23, 42, 0.9)'); // Azul tech
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0.5)');     // Transparencia en bordes
             ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 1024, 1024);
+            ctx.fillRect(0, 0, 512, 512);
         }
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        return tex;
+        return new THREE.CanvasTexture(canvas);
     }, []);
 
     return (
         <group>
-            {/* 💡 ILUMINACIÓN DE PRECISIÓN (Cian Cyberpunk) */}
-            <pointLight position={[0, 0, 5]} intensity={isActive ? 40 : 0} color="#00ffff" />
-            <spotLight 
-                position={[5, 5, 5]} 
-                angle={0.15} 
-                penumbra={1} 
-                intensity={isActive ? 20 : 0} 
-                color="#ffffff" 
-            />
+            {/* Iluminación Cyberpunk */}
+            <pointLight position={[2, 2, 5]} intensity={isActive ? 45 : 0} color="#00ffff" />
             <Environment preset="night" />
 
-            {/* CAPA 1: FONDO TÉCNICO */}
-            <mesh position={[0, 0, -0.1]}>
+            {/* Fondo del panel (Semitransparente) */}
+            <mesh position={[0, 0, -0.5]}>
                 <planeGeometry args={[16.5, 9.5]} />
-                <meshBasicMaterial map={techBackground} transparent opacity={isActive ? 1 : 0.4} />
+                <meshBasicMaterial map={techBg} transparent opacity={isActive ? 0.8 : 0.2} />
             </mesh>
 
-            {/* CAPA 2: SISTEMA DE PARTÍCULAS (Z-Depth medio) */}
-            <group position={[0, 0, 0.5]}>
-                <Starfield isActive={isActive} />
-            </group>
+            {/* Capa de partículas NUEVAS (Túnel) */}
+            <CyberTunnel isActive={isActive} />
 
-            {/* CAPA 3: ROBOT (Hero) */}
-            <group position={[0, 0, 1.2]}>
+            {/* El Robot */}
+            <group position={[0, 0, 1]}>
                 <Suspense fallback={null}>
                     <RobotModel isActive={isActive} />
                 </Suspense>
             </group>
 
-            {/* CAPA 4: EL ORBE DE LUZ (Ahora es un objeto 3D real) */}
-            <OrbeSeguimiento isActive={isActive} />
+            {/* Orbe de luz interactivo */}
+            <CyberOrbe isActive={isActive} />
         </group>
     );
 }
 
-// --- 4. ORBE DE LUZ 3D (Sigue al ratón en el espacio del widget) ---
-function OrbeSeguimiento({ isActive }: { isActive: boolean }) {
-    const meshRef = useRef<THREE.Mesh>(null);
-
+function CyberOrbe({ isActive }: { isActive: boolean }) {
+    const ref = useRef<THREE.Mesh>(null);
     useFrame((state) => {
-        if (!meshRef.current || !isActive) return;
-        // Mapeamos el ratón al tamaño del widget
-        const x = state.mouse.x * 7;
-        const y = state.mouse.y * 4;
-        meshRef.current.position.set(x, y, 2.5);
+        if (!ref.current || !isActive) return;
+        ref.current.position.set(state.mouse.x * 7, state.mouse.y * 4, 3);
     });
 
     return (
-        <mesh ref={meshRef}>
-            <sphereGeometry args={[0.2, 16, 16]} />
+        <mesh ref={ref}>
+            <sphereGeometry args={[0.1, 16, 16]} />
             <meshBasicMaterial color="#ffffff" />
             <pointLight intensity={isActive ? 30 : 0} color="#00ffff" distance={10} />
-            {/* Halo de resplandor */}
-            <mesh scale={4}>
-                <sphereGeometry args={[0.3, 16, 16]} />
-                <meshBasicMaterial color="#00ffff" transparent opacity={0.1} />
-            </mesh>
         </mesh>
     );
 }
