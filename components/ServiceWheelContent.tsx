@@ -19,7 +19,7 @@ const WIDGETS_DATA = [
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-// --- SUBCOMPONENTE: ESTRUCTURA DEL PANEL ---
+// --- ESTRUCTURA DEL PANEL (SÓLIDA E IMPENETRABLE) ---
 function PanelFrame({ color, isFront }: { color: string, isFront: boolean }) {
    const W = 16.5; 
    const H = 9.5;
@@ -27,14 +27,14 @@ function PanelFrame({ color, isFront }: { color: string, isFront: boolean }) {
 
    return (
        <mesh geometry={geometry}>
+           {/* Placa base negra SÓLIDA. Cero transparencias para evitar ver el fondo */}
            <meshStandardMaterial 
                color="#050505" 
-               roughness={0.8} 
-               metalness={1} 
-               transparent
-               opacity={isFront ? 0.5 : 0.9} 
+               roughness={0.9} 
+               metalness={0.5} 
            />
-           <Edges scale={1.002} threshold={15} color={color} transparent opacity={isFront ? 1 : 0.2} />
+           {/* Líneas de Neón del color del servicio */}
+           <Edges scale={1.002} threshold={15} color={color} transparent opacity={isFront ? 1 : 0.4} />
        </mesh>
    );
 }
@@ -43,16 +43,7 @@ export default function ServiceWheelContent() {
    const { language } = useLanguage();
    const groupRef = useRef<THREE.Group>(null);
   
-   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-   const [pageLoaded, setPageLoaded] = useState(false);
-
-   useEffect(() => {
-       const timer = setTimeout(() => {
-           setPageLoaded(true);
-           setActiveIndex(0); 
-       }, 1000);
-       return () => clearTimeout(timer);
-   }, []);
+   const [activeIndex, setActiveIndex] = useState(0);
 
    // --- FÍSICA DE ARRASTRE ---
    const isDragging = useRef(false);
@@ -63,10 +54,11 @@ export default function ServiceWheelContent() {
    const handlePointerDown = (e: any) => {
        isDragging.current = true;
        previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+       velocity.current = 0;
    };
 
    const handlePointerMove = (e: any) => {
-       if (!isDragging.current || !pageLoaded) return;
+       if (!isDragging.current) return;
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        const deltaX = currentX - previousX.current;
        velocity.current = deltaX * 0.005;
@@ -78,6 +70,7 @@ export default function ServiceWheelContent() {
        if (!isDragging.current) return;
        isDragging.current = false;
 
+       // Snap al panel exacto
        const faceAngle = (Math.PI * 2) / 5;
        const closestFace = Math.round(targetRotation.current / faceAngle);
        targetRotation.current = closestFace * faceAngle;
@@ -98,7 +91,7 @@ export default function ServiceWheelContent() {
    });
 
    return (
-       // 🚀 SUBIDA DE POSICIÓN: Se mueve a y=5 para alejarse del logo
+       // Elevado a Y=5 para que no pise tu logo inferior
        <group
            ref={groupRef}
            position={[0, 5, 0]} 
@@ -114,20 +107,19 @@ export default function ServiceWheelContent() {
                const angle = (i / 5) * Math.PI * 2;
                const x = Math.sin(angle) * radius;
                const z = Math.cos(angle) * radius;
-               const isFront = pageLoaded && i === activeIndex;
+               
+               const isFront = i === activeIndex;
 
                return (
                    <group key={widget.id} position={[x, 0, z]} rotation={[0, angle, 0]}>
                        
-                       {/* ESTRUCTURA BASE (Siempre visible para ver la rueda) */}
+                       {/* 1. PLACA BASE SÓLIDA */}
                        <PanelFrame color={widget.color} isFront={isFront} />
 
-                       {/* 🚀 WIDGET ACTIVO: Solo se renderiza si es la cara frontal */}
-                       {isFront && (
-                           <group position={[0, 0, 0.4]}> 
-                               <widget.Component isActive={isFront} />
-                           </group>
-                       )}
+                       {/* 2. TUS WIDGETS (Siempre renderizados y adelantados a Z=0.5 para que se vean perfectos) */}
+                       <group position={[0, 0, 0.5]}> 
+                           <widget.Component isActive={isFront} />
+                       </group>
 
                    </group>
                );
