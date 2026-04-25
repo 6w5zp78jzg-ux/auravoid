@@ -13,7 +13,7 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
     start: true,
   });
 
-  // 🚀 LÓGICA DE AJUSTE "COVER" INFALIBLE
+  // 🚀 LÓGICA DE CENTRADO Y AJUSTE "COVER"
   useEffect(() => {
     if (texture && texture.image) {
       const video = texture.image;
@@ -22,30 +22,23 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
         const videoAspect = video.videoWidth / video.videoHeight;
         const planeAspect = 16.5 / 9.5;
 
-        // Reset de la textura
-        texture.matrixAutoUpdate = false;
-        
-        // Calculamos el factor de escala
-        let scaleX = 1;
-        let scaleY = 1;
-        let offsetX = 0;
-        let offsetY = 0;
+        // 1. Definimos el punto de pivote en el CENTRO
+        texture.center.set(0.5, 0.5);
 
         if (videoAspect > planeAspect) {
-          // El vídeo es más ancho que el marco: recortamos laterales
-          scaleX = planeAspect / videoAspect;
-          offsetX = (1 - scaleX) / 2;
+          // El vídeo es más ancho que el marco: recortamos laterales proporcionalmente
+          // Esto "estira" el ancho para que no queden huecos a los lados
+          texture.repeat.set(planeAspect / videoAspect, 1);
+          texture.offset.set(0, 0); // Al estar el centro en 0.5, esto lo mantiene en medio
         } else {
           // El vídeo es más alto que el marco: recortamos arriba/abajo
-          scaleY = videoAspect / planeAspect;
-          offsetY = (1 - scaleY) / 2;
+          texture.repeat.set(1, videoAspect / planeAspect);
+          texture.offset.set(0, 0);
         }
-
-        // Aplicamos la transformación "Cover"
-        texture.matrix.setUvTransform(offsetX, offsetY, scaleX, scaleY, 0, 0.5, 0.5);
+        
+        texture.needsUpdate = true;
       };
 
-      // Si el vídeo ya cargó los datos, actualizamos; si no, esperamos al evento
       if (video.readyState >= 1) {
         updateTexture();
       } else {
@@ -58,7 +51,7 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
 
   return (
     <mesh ref={meshRef}>
-      {/* Usamos el tamaño exacto del marco */}
+      {/* 📏 El plano debe coincidir exactamente con el marco de la rueda */}
       <planeGeometry args={[16.5, 9.5]} />
       <meshBasicMaterial 
         map={texture} 
@@ -78,12 +71,13 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
       <Suspense fallback={
         <mesh>
           <planeGeometry args={[16.5, 9.5]} />
-          <meshBasicMaterial color="#050505" />
+          <meshBasicMaterial color="#020202" />
         </mesh>
       }>
         <CinemaScreen videoUrl={videoPath} isActive={isActive} />
       </Suspense>
 
+      {/* INTERFAZ HUD (REC, ESQUINAS) */}
       <Html
         transform
         center
@@ -98,16 +92,25 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
         }}
       >
         <div className="relative w-full h-full font-mono text-white select-none">
-          {/* Esquineras */}
+          {/* Esquineras de cámara */}
           <div className="absolute top-10 left-10 w-16 h-16 border-t-2 border-l-2 border-white/40" />
           <div className="absolute top-10 right-10 w-16 h-16 border-t-2 border-r-2 border-white/40" />
           <div className="absolute bottom-10 left-10 w-16 h-16 border-b-2 border-l-2 border-white/40" />
           <div className="absolute bottom-10 right-10 w-16 h-16 border-b-2 border-r-2 border-white/40" />
 
-          {/* REC */}
-          <div className="absolute top-12 left-12 flex items-center gap-4 bg-black/40 px-6 py-2 rounded-sm backdrop-blur-md">
+          {/* INDICADOR REC */}
+          <div className="absolute top-12 left-12 flex items-center gap-4 bg-black/40 px-6 py-2 rounded-sm backdrop-blur-md border border-white/10">
             <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_#ef4444]" />
             <span className="text-2xl font-bold text-red-500 tracking-tighter">REC 00:12:45:22</span>
+          </div>
+
+          {/* BARRA INFERIOR */}
+          <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between px-12">
+            <div className="flex flex-col gap-1">
+                <span className="text-[12px] text-white/50 tracking-[5px] uppercase font-bold">STORAGE: 128GB // RAW</span>
+                <span className="text-[10px] text-white/30 tracking-[3px]">AURA & VOID // OPTICAL_UNIT_01</span>
+            </div>
+            <span className="text-[12px] text-white/50 tracking-[5px]">24 FPS // 800 ISO</span>
           </div>
 
           <div className="absolute inset-0 shadow-[inset_0_0_150px_rgba(0,0,0,0.9)] pointer-events-none" />
