@@ -8,7 +8,7 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
     const [dataStream, setDataStream] = useState<string>('0x000000');
     const [metrics, setMetrics] = useState({ a: 84, b: 92, c: 99 });
 
-    // 1. Generador de datos (Mismo de siempre)
+    // 1. Generador de datos (Tu lógica original mantenida)
     useEffect(() => {
         if (!isActive) return;
         const interval = setInterval(() => {
@@ -18,50 +18,56 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
                 b: Math.floor(85 + Math.random() * 14),
                 c: Math.floor(95 + Math.random() * 5),
             });
-        }, 80);
+        }, 120); // Un poco más lento para mejorar rendimiento
         return () => clearInterval(interval);
     }, [isActive]);
 
-    // 2. Fondo Técnico (Material Simple, NO baked texture compleja)
+    // 2. Textura Técnica (Rejilla y Radar) - Mantenida para identidad visual
     const gridTexture = useMemo(() => {
         const c = document.createElement('canvas');
-        c.width = 256; c.height = 256;
+        c.width = 512; c.height = 256;
         const ctx = c.getContext('2d')!;
-        ctx.fillStyle = '#010810';
-        ctx.fillRect(0, 0, 256, 256);
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+        ctx.fillStyle = '#010812';
+        ctx.fillRect(0, 0, 512, 256);
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)';
         ctx.lineWidth = 1;
-        // Dibujar rejilla
-        for (let i = 0; i <= 256; i += 32) {
+        // Rejilla
+        for (let i = 0; i <= 512; i += 32) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 256); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(256, i); ctx.stroke();
         }
+        for (let i = 0; i <= 256; i += 32) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
+        }
+        // Radar Círculos
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+        ctx.beginPath(); ctx.arc(256, 128, 100, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(256, 128, 60, 0, Math.PI*2); ctx.stroke();
+        
         return new THREE.CanvasTexture(c);
     }, []);
 
     return (
         <group>
-            {/* LUZ DE APOYO */}
+            {/* LUZ AMBIENTAL LOCAL (Sutil) */}
             <ambientLight intensity={isActive ? 0.3 : 0} />
-            <pointLight position={[0, 0, 4]} intensity={isActive ? 20 : 0} color="#00ffff" />
 
-            {/* Capa 1: El panel base (Con textura de rejilla) */}
+            {/* CAPA 1: EL PANEL BASE (En Z=0, Material Básico sin luces para rendimiento) */}
             <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
-                <meshStandardMaterial 
+                <meshBasicMaterial 
                     map={gridTexture}
-                    emissive="#001a2c" // Un brillo sutil azul profundo
-                    emissiveIntensity={isActive ? 1 : 0}
+                    transparent={false}
+                    opacity={isActive ? 1 : 0.2}
                 />
             </mesh>
 
-            {/* Capa 2: Interfaz HUD (HTML Súper-Simplificado) */}
+            {/* CAPA 2: DATOS DINÁMICOS (Adelantados agresivamente a Z=0.6) */}
             <Html
                 transform
                 center
-                distanceFactor={8.5} // Ajuste para que encaje
-                occlude={false}
-                position={[0, 0, 0.4]} // Adelantado a Z=0.4
+                distanceFactor={8.5} // Ajuste de escala para el marco
+                occlude={false} // 🚀 CRUCIAL: Desactivar oclusión
+                position={[0, 0, 0.6]} // 🚀 Separación masiva para forzar renderizado
                 style={{
                     width: '800px',
                     height: '500px',
@@ -70,43 +76,55 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
                     transition: 'opacity 0.6s ease',
                 }}
             >
-                <div className="w-full h-full font-mono text-cyan-400 p-10 flex flex-col justify-between border border-cyan-500/30">
-                    {/* Cabecera */}
+                {/* HUD: Texto de alta visibilidad (Cian sobre fondo casi negro) */}
+                <div className="w-full h-full font-mono text-cyan-400 p-12 flex flex-col justify-between select-none">
+                    
+                    {/* Sección Superior: System Info */}
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-2xl font-black">
+                            <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-cyan-400 animate-pulse" />
-                                MARKETING.OS
+                                <span className="text-3xl font-black tracking-tighter">MARKETING_NODE</span>
                             </div>
-                            <div className="text-[10px] opacity-70 tracking-[2px]">Algorithm: Aura_vNeural_Aura</div>
-                            <div className="text-[10px] text-white/50">{dataStream}</div>
+                            <span className="text-[11px] opacity-70 flex flex-col">
+                                <span>STATUS: ACTIVE_SCANNING</span>
+                                <span>STREAM: {dataStream}</span>
+                            </span>
                         </div>
-                        <div className="text-[9px] border border-cyan-500 p-1 uppercase">Acquiring_Data</div>
+                        <div className="text-right">
+                            <div className="text-[9px] border border-cyan-500 p-2 uppercase">Neural_Aura_v3.1</div>
+                        </div>
                     </div>
 
-                    {/* MÉTRICAS (Lo más importante, centrado) */}
-                    <div className="flex justify-between items-end">
-                        <div className="flex gap-10">
+                    {/* Barrido de Radar (Sutil CSS) */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                        <div 
+                            className="w-[300px] h-[300px] rounded-full animate-[spin_5s_linear_infinite]" 
+                            style={{ background: 'conic-gradient(from 0deg, transparent 70%, #00ffff 100%)' }} 
+                        />
+                    </div>
+
+                    {/* Sección Inferior: Métricas Clave (Alta Visibilidad) */}
+                    <div className="flex justify-between items-end border-t border-cyan-500/20 pt-8 z-10">
+                        <div className="flex gap-12">
                             <div className="flex flex-col">
-                                <span className="text-[9px] opacity-40 uppercase">CTR_CORE</span>
-                                <span className="text-5xl font-bold text-white">{metrics.a}%</span>
+                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">CTR_CORE</span>
+                                <span className="text-5xl font-extrabold text-white">{metrics.a}%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[9px] opacity-40 uppercase">CONV_OPT</span>
-                                <span className="text-5xl font-bold text-white">{metrics.b}%</span>
+                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">CONV_OPT</span>
+                                <span className="text-5xl font-extrabold text-white">{metrics.b}%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[9px] opacity-40 uppercase">RET_CORE</span>
-                                <span className="text-5xl font-bold text-cyan-400">{metrics.c}%</span>
+                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">LOYALTY</span>
+                                <span className="text-5xl font-extrabold text-cyan-400">{metrics.c}%</span>
                             </div>
                         </div>
                         
-                        <div className="flex flex-col items-end text-[8px] gap-1 opacity-50">
-                            Enlace_Cognitivo_Node
+                        <div className="flex flex-col items-end text-[9px] gap-1 opacity-50">
+                            GLOBAL_NETWORK_SYNC
                             <div className="flex gap-1">
-                                <div className="w-1 h-3 bg-cyan-500/40 animate-pulse" />
-                                <div className="w-1 h-3 bg-cyan-500/40 animate-pulse" />
-                                <div className="w-1 h-3 bg-cyan-500/40 animate-pulse" />
+                                {[1,2,3].map(i => <div key={i} className="w-1.5 h-3 bg-cyan-500 animate-pulse" style={{animationDelay: `${i*0.1}s`}} />)}
                             </div>
                         </div>
                     </div>
