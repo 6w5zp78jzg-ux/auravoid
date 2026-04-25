@@ -1,30 +1,25 @@
-
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Text3D, Center, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers'; 
 
-// --- 1. LINTERNA (Intacta, adaptada al espacio global) ---
+// --- 1. LINTERNA (Optimizado) ---
 function Flashlight({ isActive }: { isActive: boolean }) {
     const lightRef = useRef<THREE.PointLight>(null);
     const { mouse } = useThree();
 
     useFrame(() => {
         if (!lightRef.current || !isActive) return;
-        
-        // Multiplicamos por un factor para que cubra bien el widget
-        const x = mouse.x * 4;
-        const y = mouse.y * 3;
-        
-        lightRef.current.position.set(x, y, 3.5); 
+        // Mapeo suave del ratón/toque sobre el panel
+        lightRef.current.position.set(mouse.x * 6, mouse.y * 4, 3.5); 
     });
 
     return (
         <pointLight 
             ref={lightRef} 
-            intensity={isActive ? 85 : 0} 
+            intensity={isActive ? 100 : 0} 
             color="#ffffff" 
             distance={25} 
             decay={2}
@@ -32,19 +27,19 @@ function Flashlight({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 2. FOCOS MÓVILES (Intactos) ---
-function MovingSpotlights() {
+// --- 2. FOCOS MÓVILES (Solo activos si se ven) ---
+function MovingSpotlights({ visible }: { visible: boolean }) {
     const groupRef = useRef<THREE.Group>(null);
 
     useFrame((state) => {
-        if (!groupRef.current) return;
+        if (!groupRef.current || !visible) return;
         const t = state.clock.getElapsedTime();
         groupRef.current.rotation.z = t * 0.5;
         groupRef.current.rotation.y = t * 0.2;
     });
 
     return (
-        <group ref={groupRef}>
+        <group ref={groupRef} visible={visible}>
             <pointLight position={[4, 4, 2]} intensity={15} color="#ffffff" distance={12} />
             <pointLight position={[-4, -4, 2]} intensity={15} color="#ffffff" distance={12} />
             <pointLight position={[5, 0, 1]} intensity={10} color="#aaccff" distance={10} />
@@ -52,8 +47,8 @@ function MovingSpotlights() {
     );
 }
 
-// --- 3. OBSIDIANA PURA (Intacta) ---
-function ObsidianText({ language }: { language: string }) {
+// --- 3. OBSIDIANA PURA (Aumentada a tamaño Hero) ---
+function ObsidianText({ language, visible }: { language: string, visible: boolean }) {
     const textRef = useRef<THREE.Group>(null);
     const TEXTOS = {
         es: { mainL1: "BRANDING", mainL2: "& PR", sub: "INGENIERIA DE PERCEPCION" },
@@ -63,76 +58,83 @@ function ObsidianText({ language }: { language: string }) {
 
     const obsidianProps = {
         color: "#000000",
-        metalness: 0.0,
-        roughness: 0.05,
+        metalness: 1.0,
+        roughness: 0.02, // Más pulido para que brille más
         clearcoat: 1.0,
-        clearcoatRoughness: 0.05,
+        clearcoatRoughness: 0.02,
     };
 
     useFrame((state) => {
-        if(!textRef.current) return;
+        if(!textRef.current || !visible) return;
         const t = state.clock.getElapsedTime();
-        textRef.current.rotation.y = Math.sin(t * 0.1) * 0.03;
-        textRef.current.rotation.x = Math.cos(t * 0.1) * 0.01;
+        textRef.current.rotation.y = Math.sin(t * 0.1) * 0.05;
     });
 
     const fontUrl = "https://unpkg.com/three/examples/fonts/helvetiker_bold.typeface.json";
 
     return (
-        <group ref={textRef} position={[0, 0, 0]}>
-            <Center top position={[0, 0.4, 0]}>
-                <Text3D font={fontUrl} size={0.5} height={0.15} curveSegments={12} bevelEnabled bevelThickness={0.02} bevelSize={0.02} bevelOffset={0} bevelSegments={5}>
+        <group ref={textRef} position={[0, 0, 0.2]} visible={visible}>
+            <Center top position={[0, 1.2, 0]}>
+                <Text3D font={fontUrl} size={1.2} height={0.3} curveSegments={12}>
                     {currentText.mainL1}
                     <meshPhysicalMaterial {...obsidianProps} />
                 </Text3D>
             </Center>
-            <Center top position={[0, -0.3, 0]}>
-                <Text3D font={fontUrl} size={0.5} height={0.15} curveSegments={12} bevelEnabled bevelThickness={0.02} bevelSize={0.02} bevelOffset={0} bevelSegments={5}>
+            <Center top position={[0, -0.2, 0]}>
+                <Text3D font={fontUrl} size={1.2} height={0.3} curveSegments={12}>
                     {currentText.mainL2}
                     <meshPhysicalMaterial {...obsidianProps} />
                 </Text3D>
             </Center>
-            <Center top position={[0, -1.0, 0]}>
-                <Text3D font={fontUrl} size={0.18} height={0.05} curveSegments={8} bevelEnabled bevelThickness={0.01} bevelSize={0.01}>
+            <Center top position={[0, -1.8, 0]}>
+                <Text3D font={fontUrl} size={0.35} height={0.1}>
                     {currentText.sub}
-                    <meshPhysicalMaterial {...obsidianProps} roughness={0.2} clearcoat={0.2} />
+                    <meshPhysicalMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
                 </Text3D>
             </Center>
         </group>
     );
 }
 
-// --- 4. PANEL PRINCIPAL (El Híbrido WebGL + HTML) ---
+// --- 4. PANEL PRINCIPAL ---
 export default function BrandingWidget({ isActive }: { isActive: boolean }) {
     const { language } = useLanguage();
     const [isInteracting, setIsInteracting] = useState(false);
 
-    if (!isActive) return null;
+    // --- REGLA DE ORO: NUNCA DEVOLVER NULL ---
 
     return (
-        // El widget ahora devuelve un <group> nativo de Three.js
         <group 
             onPointerOver={() => setIsInteracting(true)}
             onPointerOut={() => setIsInteracting(false)}
         >
-            {/* CAPA 1: EL FONDO HTML (Renderizado en el espacio 3D detrás del texto) */}
-            {/* position Z negativa lo empuja hacia el fondo para que el 3D flote delante */}
-            <Html transform center distanceFactor={12} position={[0, 0, -0.5]}>
-                <div className="relative w-[500px] h-[350px] border border-white/5 rounded-xl overflow-hidden pointer-events-none">
+            {/* CAPA 1: EL FONDO HTML */}
+            <Html 
+                transform 
+                center 
+                distanceFactor={8} // 🚀 Tamaño Hero
+                position={[0, 0, -0.1]}
+                style={{
+                    opacity: isActive ? 1 : 0,
+                    pointerEvents: isActive ? 'auto' : 'none',
+                    transition: 'opacity 0.6s ease-in-out',
+                }}
+            >
+                <div className="relative w-[800px] h-[500px] border border-white/5 rounded-xl overflow-hidden pointer-events-none">
                     <div 
                         className="absolute inset-0 z-0" 
-                        style={{ background: 'radial-gradient(circle at 50% 50%, #820620 0%, #3d020e 65%, #000000 100%)' }} 
+                        style={{ background: 'radial-gradient(circle at 50% 50%, #820620 40%, #000000 100%)' }} 
                     />
-                    <div className="absolute top-4 left-4 text-[10px] tracking-[2px] text-white/40 uppercase font-mono z-20">
-                        PR Legacy Core V.O.I.D.
+                    <div className="absolute top-10 left-10 text-[14px] tracking-[4px] text-white/40 uppercase font-mono z-20">
+                        PR_LEGACY_CORE // V.O.I.D.
                     </div>
                 </div>
             </Html>
 
-            {/* CAPA 2: LOS ELEMENTOS 3D NATIVOS (Flotan sobre el HTML) */}
-            <ObsidianText language={language} />
+            {/* CAPA 2: ELEMENTOS 3D (Solo visibles y activos si isActive es true) */}
+            <ObsidianText language={language} visible={isActive} />
             <Flashlight isActive={isActive && isInteracting} />
-            <MovingSpotlights />
+            <MovingSpotlights visible={isActive} />
         </group>
     );
 }
