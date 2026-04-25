@@ -40,54 +40,87 @@ export default function ServiceWheelContent() {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
 
+   // --- FÍSICA AVANZADA ---
    const isDragging = useRef(false);
-   const previousX = useRef(0);
+   const rotationRef = useRef(0);
    const velocity = useRef(0);
-   const targetRotation = useRef(0);
+   const previousX = useRef(0);
+   const lastMoveTime = useRef(0);
+
+   // Parámetros de sensación (Ajustables)
+   const friction = 0.95;     // Inercia: 0.98 flota mucho, 0.90 se frena rápido
+   const snapStrength = 0.12; // Qué tan fuerte el imán te absorbe al centro
+   const faceAngle = (Math.PI * 2) / 5; // 72 grados por cara
 
    const handlePointerDown = (e: any) => {
        isDragging.current = true;
        previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        velocity.current = 0;
+       lastMoveTime.current = performance.now();
    };
 
    const handlePointerMove = (e: any) => {
        if (!isDragging.current) return;
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+       const now = performance.now();
+       const deltaTime = now - lastMoveTime.current;
+       
        const deltaX = currentX - previousX.current;
-       velocity.current = deltaX * 0.005;
-       targetRotation.current += velocity.current;
+       const moveScale = 0.006; // Sensibilidad del dedo
+       
+       rotationRef.current += deltaX * moveScale;
+       
+       // Calculamos la velocidad basada en el último movimiento para la inercia
+       if (deltaTime > 0) {
+           velocity.current = (deltaX * moveScale) / (deltaTime / 16.6);
+       }
+
        previousX.current = currentX;
+       lastMoveTime.current = now;
    };
 
    const handlePointerUp = () => {
-       if (!isDragging.current) return;
        isDragging.current = false;
-       const faceAngle = (Math.PI * 2) / 5;
-       const closestFace = Math.round(targetRotation.current / faceAngle);
-       targetRotation.current = closestFace * faceAngle;
-       let index = (-closestFace) % 5;
-       if (index < 0) index += 5; 
-       if (index !== activeIndex) setActiveIndex(index);
    };
 
-   useFrame(() => {
+   useFrame((state, delta) => {
        if (!groupRef.current) return;
+
        if (!isDragging.current) {
-           groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.1);
-       } else {
-           groupRef.current.rotation.y = targetRotation.current;
+           // 1. Aplicamos Inercia (Fricción)
+           rotationRef.current += velocity.current;
+           velocity.current *= friction;
+
+           // 2. Cálculo de Snap Magnético
+           // Buscamos el ángulo ideal del panel más cercano
+           const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
+           const diff = targetSnap - rotationRef.current;
+           
+           // El snap se activa progresivamente cuando la rueda pierde velocidad
+           if (Math.abs(velocity.current) < 0.05) {
+               rotationRef.current += diff * snapStrength;
+               velocity.current *= 0.8; // Ayuda a estabilizar el frenado
+           }
+
+           // 3. Actualizar índice activo (para cargar widgets)
+           let index = Math.round(-rotationRef.current / faceAngle) % 5;
+           if (index < 0) index += 5;
+           if (index !== activeIndex) setActiveIndex(index);
        }
+
+       // Aplicamos la rotación física al modelo
+       groupRef.current.rotation.y = rotationRef.current;
    });
 
    return (
        <group
            ref={groupRef}
-           position={[0, 6.5, 0]} // Elevado para que sea protagonista absoluto
+           position={[0, 8.5, 0]} // Elevado más arriba para despejar el logo
            onPointerDown={handlePointerDown}
            onPointerMove={handlePointerMove}
            onPointerUp={handlePointerUp}
            onPointerLeave={handlePointerUp}
+           onPointerCancel={handlePointerUp}
        >
            <ambientLight intensity={0.5} />
            <pointLight position={[0, 0, 10]} intensity={2} color="#ffffff" />
@@ -95,16 +128,14 @@ export default function ServiceWheelContent() {
            {WIDGETS_DATA.map((widget, i) => {
                const radius = 12.5; 
                const angle = (i / 5) * Math.PI * 2;
+               // El widget está activo si el índice coincide
                const isFront = i === activeIndex;
 
                return (
                    <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
                        
-                       {/* ESTRUCTURA FÍSICA */}
                        <PanelFrame color={widget.color} isFront={isFront} />
 
-                       {/* EL WIDGET (Sin capas extra de HTML para evitar conflictos) */}
-                       {/* Se posiciona ligeramente delante del marco negro */}
                        <group position={[0, 0, 0.25]}>
                            <widget.Component isActive={isFront} />
                        </group>
