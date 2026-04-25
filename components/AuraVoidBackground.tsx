@@ -2,7 +2,6 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import ServiceCylinder from './ServiceCylinder';
 
 function BackgroundMesh() {
   const meshRef = useRef<THREE.Mesh>(null);
@@ -62,11 +61,9 @@ function BackgroundMesh() {
           void main() { 
             float v = voronoi(vUv * 4.0 + u_time * 0.04); 
             
-            // Halo de luz ajustado (+15% brillo y suavidad)
             float glow = pow(1.0 - smoothstep(0.0, 0.55, length(vUv - u_mouse)), 3.0);
             vec3 dynamicColor = 0.6 + 0.4 * cos(u_time * 0.15 + vec3(0.0, 2.0, 4.0));
             
-            // El multiplicador 0.40 da ese extra de luminosidad comparado con el 0.35 anterior
             gl_FragColor = vec4(vec3(v * 1.1) * dynamicColor, glow * 0.40); 
           }
         `}
@@ -77,11 +74,12 @@ function BackgroundMesh() {
 }
 
 export default function AuraVoidBackground() {
+  // El comentario ahora está de forma segura fuera del return. 
+  // Se mantiene pointer-events-none para que no interfiera con el scroll y el arrastre principal.
   return (
-    <div className="fixed inset-0 -z-10 bg-black overflow-hidden touch-none">
+    <div className="fixed inset-0 -z-10 bg-black overflow-hidden touch-none pointer-events-none">
       <Canvas camera={{ position: [0, 0.5, 20], fov: 60 }}>
         <BackgroundMesh />
-        <ServiceCylinder />
       </Canvas>
     </div>
   );
