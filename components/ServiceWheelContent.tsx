@@ -10,76 +10,51 @@ import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
 const WIDGETS_DATA = [
-  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' },
-  { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
-  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
-  { id: 'br', Component: BrandingWidget, color: '#ffff00' },
-  { id: 'ev', Component: EventsWidget, color: '#9932cc' }
+  { id: 'av', Component: AudiovisualWidget, color: 'magenta' },
+  { id: 'mk', Component: MarketingWidget, color: 'cyan' },
+  { id: 'ai', Component: IARobotTracker, color: 'lime' },
+  { id: 'br', Component: BrandingWidget, color: 'yellow' },
+  { id: 'ev', Component: EventsWidget, color: 'purple' }
 ];
 
 export default function ServiceWheelContent() {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
-
    const rotationRef = useRef(0);
-   const isDragging = useRef(false);
-   const previousX = useRef(0);
-
-   const onPointerDown = (e: any) => {
-       isDragging.current = true;
-       previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-   };
-
-   const onPointerMove = (e: any) => {
-       if (!isDragging.current) return;
-       const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-       const deltaX = currentX - previousX.current;
-       rotationRef.current += deltaX * 0.01;
-       previousX.current = currentX;
-   };
-
-   const onPointerUp = () => { isDragging.current = false; };
 
    useFrame(() => {
        if (!groupRef.current) return;
-       const faceAngle = (Math.PI * 2) / 5;
-
-       if (!isDragging.current) {
-           const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
-           
-           let index = Math.round(-rotationRef.current / faceAngle) % 5;
-           if (index < 0) index += 5;
-           if (index !== activeIndex) setActiveIndex(index);
-       }
+       // Rotación constante automática para que la veas aparecer si está por ahí
+       rotationRef.current += 0.005; 
        groupRef.current.rotation.y = rotationRef.current;
+       
+       const faceAngle = (Math.PI * 2) / 5;
+       let index = Math.round(-rotationRef.current / faceAngle) % 5;
+       if (index < 0) index += 5;
+       if (index !== activeIndex) setActiveIndex(index);
    });
 
    return (
        <group 
           ref={groupRef} 
-          position={[0, 5, 0]} // 🚀 POSICIÓN DE SEGURIDAD
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
+          // 🚀 POSICIÓN DE RESCATE: Un poco elevada y centrada
+          position={[0, 2, 0]} 
        >
            {WIDGETS_DATA.map((widget, i) => {
                const angle = (i / 5) * Math.PI * 2;
-               const radius = 8; // 🚀 Radio más corto para que entre en cámara
-               const isFront = i === activeIndex;
+               const radius = 10; 
 
                return (
                    <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
                        
-                       {/* 🏗️ ESTRUCTURA DE REFERENCIA (Caja blanca para saber dónde estamos) */}
+                       {/* 🟥 PANEL DE PRUEBA: Si ves estos rectángulos de colores, la rueda ha vuelto */}
                        <mesh>
-                           <boxGeometry args={[10, 6, 0.1]} />
-                           <meshStandardMaterial color="white" wireframe />
+                           <boxGeometry args={[12, 7, 0.5]} />
+                           <meshStandardMaterial color={widget.color} emissive={widget.color} emissiveIntensity={0.5} />
                        </mesh>
 
-                       <group position={[0, 0, 0.5]}>
-                           <widget.Component isActive={isFront} />
+                       <group position={[0, 0, 0.6]}>
+                           <widget.Component isActive={i === activeIndex} />
                        </group>
                    </group>
                );
