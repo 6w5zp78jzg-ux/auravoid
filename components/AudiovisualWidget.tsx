@@ -5,56 +5,62 @@ import { Html } from '@react-three/drei';
 export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
     const videoPath = "/video/alpha.mp4";
 
-    // --- ELIMINADO EL return null ---
-    // Ahora el componente vive siempre, solo lo ocultamos visualmente.
-
     return (
         <group>
             <Html 
                 transform 
                 center 
-                distanceFactor={8} // 🚀 Bajado de 12 a 8 para que el widget se vea MUCHO MÁS GRANDE (Hero)
-                position={[0, 0, 0.1]}
+                // 1. OCULTACIÓN DESACTIVADA: Forzamos a Safari a renderizarlo sí o sí
+                occlude={false} 
+                distanceFactor={6} // 🚀 Más pequeño el factor = Más grande el widget
+                // 2. DISTANCIA DE SEGURIDAD: Lo alejamos un poco más (Z=0.5)
+                position={[0, 0, 0.5]} 
                 style={{
-                    // Usamos opacidad para que el vídeo ya esté cargado y listo al llegar al frente
                     opacity: isActive ? 1 : 0,
                     pointerEvents: isActive ? 'auto' : 'none',
                     transition: 'opacity 0.6s ease-in-out',
-                    width: '800px', // Forzamos ancho para que el diseño no colapse
+                    // 3. BACKFACE VISIBILITY: Vital para que al girar no desaparezca por error
+                    backfaceVisibility: 'hidden', 
+                    width: '800px',
                     height: '500px',
                 }}
             >
-                {/* Aumentamos las dimensiones del div para que encaje en el marco Hero de 16.5x9.5 */}
-                <div className="relative w-[800px] h-[500px] bg-black border border-white/10 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+                <div className="relative w-[800px] h-[500px] bg-[#050505] border-2 border-white/10 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,1)]">
                     
-                    {/* UI DE CÁMARA */}
+                    {/* UI DE CÁMARA (Escalada para impacto) */}
                     <div className="absolute inset-0 z-20 pointer-events-none">
-                        <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-white/40" />
-                        <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-white/40" />
-                        <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-white/40" />
-                        <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-white/40" />
+                        <div className="absolute top-10 left-10 w-16 h-16 border-t-4 border-l-4 border-white/30" />
+                        <div className="absolute top-10 right-10 w-16 h-16 border-t-4 border-r-4 border-white/30" />
+                        <div className="absolute bottom-10 left-10 w-16 h-16 border-b-4 border-l-4 border-white/30" />
+                        <div className="absolute bottom-10 right-10 w-16 h-16 border-b-4 border-r-4 border-white/30" />
                         
-                        <div className="absolute bottom-0 w-full h-16 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between px-10">
-                            <span className="text-[12px] text-white/50 tracking-[4px] font-mono uppercase">128GB // RAW // REC-709</span>
-                            <span className="text-[12px] text-white/50 tracking-[4px] font-mono">24 FPS // 800 ISO // 5600K</span>
+                        <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-black via-black/80 to-transparent flex items-center justify-between px-12">
+                            <div className="flex flex-col">
+                                <span className="text-[14px] text-white/60 tracking-[5px] font-mono font-bold">4K // PRORES 4444</span>
+                                <span className="text-[10px] text-white/30 font-mono">DYNAMIC RANGE: HIGH</span>
+                            </div>
+                            <span className="text-[14px] text-white/60 tracking-[5px] font-mono">24 FPS // ISO 800</span>
                         </div>
                     </div>
 
-                    <div className="absolute top-10 left-10 z-30 flex items-center gap-3 font-mono text-[14px] text-red-500 font-bold bg-black/60 px-4 py-2 rounded-lg backdrop-blur-md border border-red-500/30">
-                        <div className="w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_#dc2626]" />
-                        <span>REC 00:12:45:22</span>
+                    {/* INDICADOR REC */}
+                    <div className="absolute top-12 left-12 z-30 flex items-center gap-4 bg-black/60 px-6 py-3 rounded-2xl backdrop-blur-xl border border-red-500/20">
+                        <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_20px_#ef4444]" />
+                        <span className="font-mono text-xl text-red-500 font-black tracking-tighter">REC 00:42:15:08</span>
                     </div>
 
-                    <div className="absolute top-10 right-10 z-30 text-white/20 font-mono text-xs">
-                        AURA_VOID_STUDIOS // 2026
+                    <div className="absolute top-12 right-12 z-30 text-white/10 font-mono text-sm tracking-[8px]">
+                        AV_UNIT_V.01
                     </div>
 
-                    {/* VIDEO: Siempre cargado pero pausado si no está activo para salvar CPU */}
+                    {/* VIDEO: Con filtro de contraste para que resalte */}
                     <video 
                         src={videoPath}
                         autoPlay loop muted playsInline
                         className="absolute inset-0 w-full h-full object-cover z-10"
-                        style={{ filter: isActive ? 'brightness(1)' : 'brightness(0.2)' }}
+                        style={{ 
+                            filter: isActive ? 'brightness(1.1) contrast(1.1)' : 'brightness(0)' 
+                        }}
                     />
                 </div>
             </Html>
