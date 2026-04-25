@@ -1,8 +1,7 @@
 'use client';
-// 1. AÑADIDO useMemo A LA IMPORTACIÓN
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { MeshTransmissionMaterial, Sparkles, SpotLight } from '@react-three/drei';
+import { Sparkles, Edges } from '@react-three/drei';
 import * as THREE from 'three';
 
 import AudiovisualWidget from './AudiovisualWidget';
@@ -12,30 +11,26 @@ import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
 const WIDGETS = [
-  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' },
-  { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
-  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
-  { id: 'br', Component: BrandingWidget, color: '#ffff00' },
-  { id: 'ev', Component: EventsWidget, color: '#9932cc' }
+  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' }, // Rosa Neón
+  { id: 'mk', Component: MarketingWidget, color: '#4169e1' }, // Azul Real
+  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' }, // Verde Esmeralda
+  { id: 'br', Component: BrandingWidget, color: '#ffff00' }, // Amarillo
+  { id: 'ev', Component: EventsWidget, color: '#9932cc' } // Púrpura
 ];
 
 export default function ServiceWheelContent() {
   const groupRef = useRef<THREE.Group>(null);
-  
-  // Estado para la cara activa
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [pageLoaded, setPageLoaded] = useState(false);
 
-  // Activamos el motor táctil tras la carga (ahorro RAM)
   useEffect(() => {
     const timer = setTimeout(() => {
       setPageLoaded(true);
-      setActiveIndex(0); // Activamos la primera cara tras 2s
-    }, 2000);
+      setActiveIndex(0);
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  // --- FÍSICA DE ARRASTRE ---
   const isDragging = useRef(false);
   const previousX = useRef(0);
   const velocity = useRef(0);
@@ -43,147 +38,96 @@ export default function ServiceWheelContent() {
 
   const handlePointerDown = (e: any) => {
     isDragging.current = true;
-    previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || (e.nativeEvent && e.nativeEvent.clientX) || 0;
-    velocity.current = 0;
+    previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
   };
 
   const handlePointerMove = (e: any) => {
     if (!isDragging.current || !pageLoaded) return;
-    const currentX = e.clientX || (e.touches && e.touches[0].clientX) || (e.nativeEvent && e.nativeEvent.clientX) || 0;
+    const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
     const deltaX = currentX - previousX.current;
-
     velocity.current = deltaX * 0.005;
     targetRotation.current += velocity.current;
     previousX.current = currentX;
   };
 
   const handlePointerUp = () => {
-    if (!isDragging.current || !pageLoaded) return;
+    if (!isDragging.current) return;
     isDragging.current = false;
-
-    // Calculamos el snap magnético (72 grados)
     const faceAngle = (Math.PI * 2) / 5;
     const closestFace = Math.round(targetRotation.current / faceAngle);
     targetRotation.current = closestFace * faceAngle;
-
-    // Matemática para saber qué panel está al frente (0-4)
     let index = (-closestFace) % 5;
     if (index < 0) index += 5; 
-    
-    // Solo actualizamos si cambia
-    if (index !== activeIndex) {
-        setActiveIndex(index);
-    }
+    if (index !== activeIndex) setActiveIndex(index);
   };
 
-  useFrame((state) => {
+  useFrame(() => {
     if (!groupRef.current) return;
-
     if (!isDragging.current) {
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.12);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.1);
     } else {
       groupRef.current.rotation.y = targetRotation.current;
     }
   });
 
-  // Geometría del marco (metal) compartida
-  const frameGeometry = useMemo(() => {
-    return new THREE.BoxGeometry(9.4, 6.4, 0.3); 
-  }, []);
-
-  const crystalGeometry = useMemo(() => {
-    return new THREE.PlaneGeometry(9, 6);
-  }, []);
+  // GEOMETRÍAS "HERO" (Más gruesas y masivas)
+  const frameGeo = useMemo(() => new THREE.BoxGeometry(9.6, 6.6, 0.5), []);
+  const glassGeo = useMemo(() => new THREE.PlaneGeometry(9, 6), []);
 
   return (
-    <group
-      ref={groupRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
-      {/* 🔮 --- SISTEMA DE ILUMINACIÓN VOLUMÉTRICA INTERNA --- 🔮 */}
-      <SpotLight
-        position={[0, 0, 0]} 
-        angle={Math.PI * 2} 
-        penumbra={1}
-        intensity={2}
-        distance={20}
-        color="#3200a8" 
-        castShadow={false}
-      />
-      
-      {WIDGETS.map((widget, i) => {
-        const angle = (i / 5) * Math.PI * 2;
-        
-        // RADIO AJUSTADO: Pasamos a 5.8 para un pilar más monolítico
-        const radius = 5.8;
+    <group>
+      {/* 💡 LUCES AUTÓNOMAS: La rueda trae su propia iluminación escénica */}
+      {/* Luz Frontal: Ilumina el panel que el usuario está mirando */}
+      <spotLight position={[0, 5, 15]} angle={0.6} penumbra={0.5} intensity={5} color="#ffffff" distance={40} />
+      {/* Luz del Núcleo: Brilla desde el centro del pentágono hacia afuera */}
+      <pointLight position={[0, 0, 0]} intensity={3} color="#4B0082" distance={15} decay={2} />
 
-        const x = Math.sin(angle) * radius;
-        const z = Math.cos(angle) * radius;
+      {/* EL GRUPO ROTATORIO */}
+      <group
+        ref={groupRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      >
+        {WIDGETS.map((widget, i) => {
+          const angle = (i / 5) * Math.PI * 2;
+          const radius = 6.2; // Radio ampliado para mayor impacto
+          const isFront = pageLoaded && i === activeIndex;
 
-        // Solo se enciende si es la cara activa
-        const isFront = pageLoaded && i === activeIndex;
-
-        return (
-          <group
-            key={widget.id}
-            position={[x, 0, z]}
-            rotation={[0, angle, 0]}
-          >
-            {/* El widget híbrido HTML solo si está al frente (Holograma) */}
-            <widget.Component isActive={isFront} />
-
-            {/* 💎 ESTÉTICA "HERO": ESTRUCTURA Y CRISTAL 💎 */}
-            
-            {/* 1. MARCO METÁLICO MONOLÍTICO NEGRO */}
-            <mesh geometry={frameGeometry} position={[0, 0, -0.21]}>
-              <meshStandardMaterial
-                color="#050505"
-                roughness={0.8}
-                metalness={1}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-
-            {/* 2. CRISTAL REFRACTOR ÓPTICO PREMIUM */}
-            {/* 2. ELIMINADAS LAS PROPIEDADES DE DISTORSIÓN QUE DABAN ERROR */}
-            <mesh geometry={crystalGeometry} position={[0, 0, -0.2]}>
-              <MeshTransmissionMaterial
-                backside={true}
-                thickness={0.8}
-                chromaticAberration={0.05} 
-                anisotropy={0.1}
-                clearcoat={1}
-                clearcoatRoughness={0.1}
-                color={isFront ? "#000000" : "#111111"} 
-                transparent
-                opacity={isFront ? 0.35 : 0.9} 
-              />
+          return (
+            <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
               
-              {/* Borde ultra sutil de 1 píxel que brilla con la luz central */}
-              <lineSegments>
-                <edgesGeometry args={[crystalGeometry]} />
-                <lineBasicMaterial color={widget.color} transparent opacity={isFront ? 0.2 : 0.03} />
-              </lineSegments>
-            </mesh>
+              {/* WIDGET HÍBRIDO (Se enciende al estar de frente) */}
+              <widget.Component isActive={isFront} />
 
-            {/* Partículas internas que flotan solo dentro del cristal cuando está inactivo */}
-            {!isFront && (
-                <Sparkles 
-                    count={20} 
-                    scale={[8, 5, 0.5]} 
-                    size={2.5} 
-                    speed={0.1} 
-                    opacity={0.08} 
-                    color={widget.color} 
+              {/* 1. MARCO MONOLÍTICO DE OBSIDIANA */}
+              <mesh geometry={frameGeo} position={[0, 0, -0.21]}>
+                <meshStandardMaterial color="#020202" metalness={0.8} roughness={0.3} />
+                {/* Bordes de neón del color de la categoría */}
+                <Edges scale={1} threshold={15} color={widget.color} transparent opacity={isFront ? 1 : 0.3} />
+              </mesh>
+
+              {/* 2. PANTALLA INACTIVA (Negro absoluto y pulido) */}
+              <mesh geometry={glassGeo} position={[0, 0, -0.2]}>
+                <meshStandardMaterial
+                  color="#000000"
+                  metalness={0.9}
+                  roughness={0.1}
+                  transparent
+                  // Cuando se activa (isFront), la pantalla oscura desaparece para mostrar tu widget HTML
+                  opacity={isFront ? 0.0 : 0.95} 
                 />
-            )}
-          </group>
-        );
-      })}
+              </mesh>
+
+              {/* Partículas flotando dentro del marco inactivo */}
+              {!isFront && (
+                  <Sparkles count={25} scale={[8, 5, 1]} size={4} speed={0.4} opacity={0.5} color={widget.color} />
+              )}
+            </group>
+          );
+        })}
+      </group>
     </group>
   );
 }
