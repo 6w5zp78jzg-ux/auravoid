@@ -4,26 +4,54 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- 1. TÚNEL DE PARTÍCULAS (Grosor x3) ---
+// --- 1. TÚNEL CONFINADO (Muros Invisibles 16.5 x 9.5) ---
 function CyberTunnel({ isActive }: { isActive: boolean }) {
     const pointsRef = useRef<THREE.Points>(null);
     const count = 1500;
+
     const [positions] = useMemo(() => {
         const p = new Float32Array(count * 3);
         for (let i = 0; i < count; i++) {
-            const a = Math.random() * Math.PI * 2;
-            const r = 2.5 + Math.random() * 5;
-            p[i*3] = Math.cos(a) * r; p[i*3+1] = Math.sin(a) * r; p[i*3+2] = Math.random() * -15;
+            // 📐 LIMITAMOS EL NACIMIENTO: 
+            // X debe estar entre -8.25 y 8.25
+            // Y debe estar entre -4.75 y 4.75
+            const x = (Math.random() - 0.5) * 16.2; // Un poco menos de 16.5 para seguridad
+            const y = (Math.random() - 0.5) * 9.2;  // Un poco menos de 9.5 para seguridad
+            
+            // Creamos el hueco central para no tapar la cara del robot
+            const dist = Math.sqrt(x*x + y*y);
+            if (dist < 2) {
+                p[i*3] = x * 3; p[i*3+1] = y * 3; // Las alejamos del centro
+            } else {
+                p[i*3] = x; p[i*3+1] = y;
+            }
+            
+            p[i*3+2] = Math.random() * -15;
         }
         return [p];
-    }, []);
+    }, [count]);
 
     useFrame((_, delta) => {
         if (!pointsRef.current || !isActive) return;
         const attr = pointsRef.current.geometry.getAttribute('position') as THREE.BufferAttribute;
+        
         for (let i = 0; i < count; i++) {
-            let z = attr.getZ(i); z += delta * 4;
-            if (z > 5) z = -15;
+            let z = attr.getZ(i);
+            let x = attr.getX(i);
+            let y = attr.getY(i);
+
+            z += delta * 5; // Velocidad
+
+            // 🚀 RESTRICCIÓN ESTRICTA:
+            // Si la partícula se sale de los bordes del panel mientras avanza,
+            // o si llega al frente (z > 5), la reseteamos al fondo.
+            if (z > 5 || Math.abs(x) > 8.2 || Math.abs(y) > 4.7) {
+                z = -15;
+                // Al resetear, nos aseguramos de que nazca dentro del marco
+                attr.setX(i, (Math.random() - 0.5) * 16.2);
+                attr.setY(i, (Math.random() - 0.5) * 9.2);
+            }
+            
             attr.setZ(i, z);
         }
         attr.needsUpdate = true;
@@ -33,8 +61,7 @@ function CyberTunnel({ isActive }: { isActive: boolean }) {
         <points ref={pointsRef}>
             <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry>
             <pointsMaterial 
-                // 🚀 GROSOR TRIPLICADO: De 0.06 a 0.18
-                size={0.18} 
+                size={0.18} // 🚀 Grosor x3 mantenido
                 color="#00ffff" 
                 transparent 
                 opacity={isActive ? 0.6 : 0} 
@@ -45,19 +72,16 @@ function CyberTunnel({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 2. MODELO ROBOT (Centrado) ---
+// --- 2. RESTO DE COMPONENTES (Robot Centrado y Halo) ---
 function RobotModel({ isActive }: { isActive: boolean }) {
     const { scene } = useGLTF('/robot_optimus.glb');
     const groupRef = useRef<THREE.Group>(null);
 
     useFrame((state) => {
         if (!groupRef.current || !isActive) return;
-        const targetX = state.mouse.x * 0.4;
-        const targetY = -state.mouse.y * 0.2;
-        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX, 0.1);
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetY, 0.1);
-        const t = state.clock.getElapsedTime();
-        groupRef.current.position.y = Math.sin(t * 0.5) * 0.1;
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, state.mouse.x * 0.4, 0.1);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -state.mouse.y * 0.2, 0.1);
+        groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
     });
 
     return (
@@ -67,7 +91,6 @@ function RobotModel({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 3. HALO DE LUZ (ORBE) ---
 function CyberHalo({ isActive }: { isActive: boolean }) {
     const mainRef = useRef<THREE.Group>(null);
     const spriteRef = useRef<THREE.Sprite>(null);
@@ -86,8 +109,10 @@ function CyberHalo({ isActive }: { isActive: boolean }) {
 
     useFrame((state) => {
         if (!mainRef.current || !isActive) return;
-        mainRef.current.position.x = THREE.MathUtils.lerp(mainRef.current.position.x, state.mouse.x * 7, 0.1);
-        mainRef.current.position.y = THREE.MathUtils.lerp(mainRef.current.position.y, state.mouse.y * 4, 0.1);
+        // 🚀 LIMITAMOS EL MOVIMIENTO DEL ORBE TAMBIÉN AL MARCO
+        mainRef.current.position.x = THREE.MathUtils.lerp(mainRef.current.position.x, state.mouse.x * 7.5, 0.1);
+        mainRef.current.position.y = THREE.MathUtils.lerp(mainRef.current.position.y, state.mouse.y * 4.2, 0.1);
+        
         const pulse = 1 + Math.sin(state.clock.elapsedTime * 4) * 0.1;
         if (spriteRef.current) spriteRef.current.scale.set(4 * pulse, 4 * pulse, 1);
     });
@@ -102,21 +127,25 @@ function CyberHalo({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 4. EXPORTACIÓN ---
 export default function IARobotTracker({ isActive }: { isActive: boolean }) {
     return (
         <group>
             <Environment preset="night" />
+            
+            {/* 🛑 EL FONDO OPACO: Crucial para que no se vea nada detrás */}
             <mesh position={[0, 0, -0.5]}>
                 <planeGeometry args={[16.5, 9.5]} />
                 <meshBasicMaterial color="#02040a" />
             </mesh>
+
             <CyberTunnel isActive={isActive} />
+
             <group position={[0, 0, 1]}>
                 <Suspense fallback={null}>
                     <RobotModel isActive={isActive} />
                 </Suspense>
             </group>
+
             <CyberHalo isActive={isActive} />
         </group>
     );
