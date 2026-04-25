@@ -1,148 +1,169 @@
 'use client';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Text, Line, Float, Environment } from '@react-three/drei';
+import * as THREE from 'three';
 
-export default function MarketingWidget({ isActive }: { isActive: boolean }) {
-    const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
-    const [dataStream, setDataStream] = useState<string>('0x000000');
-    const [metrics, setMetrics] = useState({ a: 84, b: 92, c: 99 });
+// --- 1. COMPONENTE: OBJETIVOS TÁCTICOS (Puntos con Vida) ---
+function TacticalTargets({ isActive }: { isActive: boolean }) {
+    const groupRef = useRef<THREE.Group>(null);
+    
+    const targets = useMemo(() => Array.from({ length: 8 }).map((_, i) => ({
+        pos: [(Math.random() - 0.5) * 12, (Math.random() - 0.5) * 7, 0.2],
+        id: `TRGT_0${i}`,
+        phase: Math.random() * Math.PI * 2
+    })), []);
 
-    // 1. Lógica original de datos
-    useEffect(() => {
-        if (!isActive) return;
-        const interval = setInterval(() => {
-            setDataStream('0x' + Math.random().toString(16).slice(2, 8).toUpperCase());
-            setMetrics({
-                a: Math.floor(80 + Math.random() * 19),
-                b: Math.floor(85 + Math.random() * 14),
-                c: Math.floor(95 + Math.random() * 5),
-            });
-        }, 80);
-        return () => clearInterval(interval);
-    }, [isActive]);
-
-    // 2. Parallax adaptado al motor 3D para iPad
     useFrame((state) => {
-        if (!isActive) return;
-        // Mapeamos el movimiento del ratón de Three.js (-1 a 1) al rango del HUD (0 a 100)
-        const targetX = (state.mouse.x + 1) * 50;
-        const targetY = (-state.mouse.y + 1) * 50;
-        
-        setMousePos(prev => ({
-            x: prev.x + (targetX - prev.x) * 0.1,
-            y: prev.y + (targetY - prev.y) * 0.1
-        }));
+        if (!groupRef.current || !isActive) return;
+        const t = state.clock.getElapsedTime();
+        groupRef.current.children.forEach((child, i) => {
+            // Animación de parpadeo y escala
+            const s = 1 + Math.sin(t * 3 + targets[i].phase) * 0.3;
+            child.scale.set(s, s, s);
+        });
     });
 
     return (
+        <group ref={groupRef}>
+            {targets.map((t, i) => (
+                <group key={i} position={t.pos as any}>
+                    {/* Rombo táctico */}
+                    <mesh rotation={[0, 0, Math.PI / 4]}>
+                        <planeGeometry args={[0.25, 0.25]} />
+                        <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
+                    </mesh>
+                    <Text position={[0.4, 0, 0]} fontSize={0.15} color="#00ffff" anchorX="left">
+                        {t.id}
+                    </Text>
+                </group>
+            ))}
+        </group>
+    );
+}
+
+// --- 2. COMPONENTE: INFOGRAFÍA DE BARRAS (Vida de Datos) ---
+function DataBars({ isActive }: { isActive: boolean }) {
+    const groupRef = useRef<THREE.Group>(null);
+    
+    useFrame((state) => {
+        if (!groupRef.current || !isActive) return;
+        const t = state.clock.getElapsedTime();
+        groupRef.current.children.forEach((bar, i) => {
+            const h = 1 + Math.sin(t * 5 + i * 0.5) * 0.8;
+            bar.scale.y = h;
+        });
+    });
+
+    return (
+        <group ref={groupRef} position={[-7, -3.5, 0.2]}>
+            {Array.from({ length: 14 }).map((_, i) => (
+                <mesh key={i} position={[i * 0.25, 0, 0]}>
+                    <planeGeometry args={[0.1, 1]} />
+                    <meshBasicMaterial color="#00ffff" transparent opacity={0.6} />
+                </mesh>
+            ))}
+        </group>
+    );
+}
+
+// --- 3. WIDGET PRINCIPAL ---
+export default function MarketingWidget({ isActive }: { isActive: boolean }) {
+    const sweepRef = useRef<THREE.Group>(null);
+    const [hex, setHex] = useState('0x000000');
+
+    // Datos dinámicos
+    useEffect(() => {
+        if (!isActive) return;
+        const interval = setInterval(() => {
+            setHex('0x' + Math.random().toString(16).slice(2, 8).toUpperCase());
+        }, 100);
+        return () => clearInterval(interval);
+    }, [isActive]);
+
+    useFrame((state, delta) => {
+        if (sweepRef.current && isActive) {
+            sweepRef.current.rotation.z -= delta * 2.5;
+        }
+    });
+
+    // Rejilla de fondo
+    const gridPoints = useMemo(() => {
+        const pts = [];
+        for (let i = -8; i <= 8; i += 1) {
+            pts.push([i, -4.75, 0], [i, 4.75, 0], [i, -4.75, 0]);
+        }
+        for (let i = -4.75; i <= 4.75; i += 1) {
+            pts.push([-8, i, 0], [8, i, 0], [-8, i, 0]);
+        }
+        return pts;
+    }, []);
+
+    return (
         <group>
-            {/* Usamos Html con 'transform' para que se integre en la rueda.
-               'occlude={false}' es vital para que Safari no lo esconda.
-            */}
-            <Html
-                transform
-                center
-                distanceFactor={8.2}
-                position={[0, 0, 0.5]} // 🚀 Lo adelantamos para que no lo tape nada
-                occlude={false}
-                zIndexRange={[100, 0]} // 🚀 Forzamos prioridad visual
-                style={{
-                    width: '800px',
-                    height: '450px',
-                    display: isActive ? 'block' : 'none',
-                    pointerEvents: 'none',
-                }}
-            >
-                {/* --- AQUÍ EMPIEZA TU CÓDIGO ORIGINAL SIN TOCAR --- */}
-                <div 
-                    className="relative w-full h-full border border-white/10 bg-[#020202] rounded-xl overflow-hidden font-mono select-none"
-                    style={{ WebkitTransform: 'translate3d(0,0,0)' }} // Fix para Safari
-                >
-                    {/* 1. CUADRÍCULA */}
-                    <div 
-                        className="absolute inset-0 opacity-20 pointer-events-none"
-                        style={{
-                            backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)',
-                            backgroundSize: '20px 20px',
-                            transform: `translate(${(mousePos.x - 50) * -0.2}px, ${(mousePos.y - 50) * -0.2}px)`
-                        }}
-                    />
+            {/* PANEL BASE */}
+            <mesh position={[0, 0, -0.1]}>
+                <planeGeometry args={[16.5, 9.5]} />
+                <meshBasicMaterial color="#01060b" />
+            </mesh>
 
-                    {/* 2. ANILLOS DE RADAR */}
-                    <div 
-                        className="absolute inset-0 flex items-center justify-center pointer-events-none transition-transform duration-100 ease-out"
-                        style={{ transform: `translate(${(mousePos.x - 50) * 0.5}px, ${(mousePos.y - 50) * 0.5}px)` }}
-                    >
-                        <div className="absolute w-[240px] h-[240px] border border-white/20 rounded-full border-dashed animate-[spin_10s_linear_infinite]" />
-                        <div className="absolute w-[180px] h-[180px] border border-cyan-500/30 rounded-full" />
-                        
-                        <div className="absolute w-[180px] h-[180px] rounded-full animate-[spin_3s_linear_infinite]" 
-                             style={{ background: 'conic-gradient(from 0deg, transparent 70%, rgba(0, 255, 255, 0.4) 100%)' }} 
-                        />
+            {/* REJILLA MILIMÉTRICA */}
+            <Line 
+                points={gridPoints as any} 
+                color="#00ffff" 
+                lineWidth={0.5} 
+                transparent 
+                opacity={isActive ? 0.15 : 0.05} 
+            />
 
-                        <div className="absolute w-8 h-8 border border-white/50" />
-                        <div className="absolute w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_10px_#00ffff]" />
-                    </div>
+            {/* RADAR CENTRAL (Círculos) */}
+            {[2, 3.5, 4.5].map((r, i) => (
+                <Line
+                    key={i}
+                    points={new THREE.EllipseCurve(0, 0, r, r, 0, 2 * Math.PI, false, 0).getPoints(64).map(p => [p.x, p.y, 0.05]) as any}
+                    color="#00ffff"
+                    lineWidth={1}
+                    transparent
+                    opacity={0.2}
+                />
+            ))}
 
-                    {/* 3. PUNTERO TÁCTICO */}
-                    <div 
-                        className="absolute w-[40px] h-[40px] pointer-events-none transition-all duration-75 ease-out z-20"
-                        style={{ 
-                            left: `${mousePos.x}%`, top: `${mousePos.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                        }}
-                    >
-                        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-white/80" />
-                        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-white/80" />
-                        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-white/80" />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-white/80" />
-                        
-                        <div className="absolute top-12 left-1/2 -translate-x-1/2 text-[9px] text-cyan-400 whitespace-nowrap tracking-widest">
-                            X:{mousePos.x.toFixed(1)} Y:{mousePos.y.toFixed(1)}
-                        </div>
-                    </div>
+            {/* BARRIDO DE RADAR */}
+            <group ref={sweepRef} position={[0, 0, 0.1]}>
+                <Line 
+                    points={[[0, 0, 0], [4.5, 0, 0]]} 
+                    color="#00ffff" 
+                    lineWidth={2} 
+                    transparent 
+                    opacity={isActive ? 0.8 : 0} 
+                />
+            </group>
 
-                    {/* 4. HUD DE DATOS */}
-                    <div className="absolute inset-0 p-4 pointer-events-none flex flex-col justify-between text-[10px] text-white/60 tracking-widest z-10">
-                        <div className="flex justify-between items-start">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-cyan-500 font-bold">SYS.TARGETING</span>
-                                <span>ALG: AURA_V2</span>
-                                <span>HASH: {dataStream}</span>
-                            </div>
-                            <div className="text-right flex flex-col gap-1">
-                                <span className="animate-pulse text-white font-bold">LIVE TRACKING</span>
-                                <span>{isActive ? 'ACQUIRING...' : 'STANDBY'}</span>
-                            </div>
-                        </div>
+            {/* ELEMENTOS DINÁMICOS 3D */}
+            <TacticalTargets isActive={isActive} />
+            <DataBars isActive={isActive} />
 
-                        <div className="flex justify-between items-end">
-                            <div className="flex gap-4">
-                                <div className="flex flex-col">
-                                    <span className="text-white/40">CTR</span>
-                                    <span className="text-white text-sm">{metrics.a}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-white/40">CONV</span>
-                                    <span className="text-white text-sm">{metrics.b}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-white/40">RET</span>
-                                    <span className="text-cyan-400 text-sm font-bold">{metrics.c}%</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[8px] opacity-50">SYNCED</span>
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]" />
-                            </div>
-                        </div>
-                    </div>
+            {/* TEXTOS HUD (SDF - Siempre visibles en iPad) */}
+            <group position={[-7.8, 4, 0.3]}>
+                <Text fontSize={0.5} color="#00ffff" anchorX="left" font="/fonts/GeistMono-Bold.woff">
+                    MARKETING_TARGETING.OS
+                </Text>
+                <Text position={[0, -0.6, 0]} fontSize={0.2} color="#ffffff" anchorX="left">
+                    {`ACQUISITION_MODE: ACTIVE\nUPLINK_ID: ${hex}`}
+                </Text>
+            </group>
 
-                    {/* VIÑETEO */}
-                    <div className="absolute inset-0 shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] pointer-events-none z-30" />
-                </div>
-            </Html>
+            <group position={[7.8, -4, 0.3]}>
+                <Text fontSize={0.8} color="#00ffff" anchorX="right">
+                    99.2%
+                </Text>
+                <Text position={[0, -0.5, 0]} fontSize={0.15} color="#ffffff" anchorX="right">
+                    CONVERSION_ACCURACY
+                </Text>
+            </group>
+
+            {/* ILUMINACIÓN LOCAL */}
+            <pointLight position={[0, 0, 4]} intensity={isActive ? 12 : 0} color="#00ffff" />
         </group>
     );
 }
