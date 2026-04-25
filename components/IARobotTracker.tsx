@@ -1,154 +1,134 @@
 'use client';
-import React, { useRef, useState, useMemo, Suspense } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { useGLTF, Html, Float } from '@react-three/drei';
+import React, { useRef, useMemo, Suspense } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useGLTF, Float, Environment, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- 1. SISTEMA DE PARTÍCULAS "TÚNEL" (Optimizado para Hero) ---
-function StarfieldParticles({ count = 2000, visible = true }) {
-    const pointsRef = useRef<THREE.Points>(null);
-
-    const particles = useMemo(() => {
-        const positions = new Float32Array(count * 3);
-        for (let i = 0; i < count; i++) {
-            const radius = 2 + Math.random() * 8; 
-            const theta = Math.random() * Math.PI * 2;
-            positions[i * 3 + 0] = Math.cos(theta) * radius; 
-            positions[i * 3 + 1] = Math.sin(theta) * radius; 
-            positions[i * 3 + 2] = Math.random() * -20;        
-        }
-        return positions;
-    }, [count]);
-
-    useFrame((state, delta) => {
-        if (!pointsRef.current || !visible) return;
-        const positionAttribute = pointsRef.current.geometry.getAttribute('position') as THREE.BufferAttribute;
-        for (let i = 0; i < count; i++) {
-            let z = positionAttribute.getZ(i);
-            z += delta * 5; // Más velocidad para sensación de potencia
-            if (z > 2) z = -20; 
-            positionAttribute.setZ(i, z);
-        }
-        positionAttribute.needsUpdate = true;
-    });
-
-    return (
-        <points ref={pointsRef} visible={visible}>
-            <bufferGeometry>
-                <bufferAttribute attach="attributes-position" args={[particles, 3]} />
-            </bufferGeometry>
-            <pointsMaterial
-                size={0.1}             
-                color="#00ffff" 
-                transparent
-                opacity={0.4}           
-                blending={THREE.AdditiveBlending} 
-                depthWrite={false}
-            />
-        </points>
-    );
-}
-
-// --- 2. EL ROBOT REAL (Escalado Masivo) ---
-function RobotModel({ visible, mousePos }: { visible: boolean, mousePos: { x: number, y: number } }) {
+// --- 1. MODELO DEL ROBOT (Cuello y Cabeza reactivos) ---
+function RobotModel({ isActive }: { isActive: boolean }) {
     const { scene } = useGLTF('/robot_optimus.glb'); 
-    const groupRef = useRef<THREE.Group | null>(null);
+    const groupRef = useRef<THREE.Group>(null);
 
-    useFrame(() => {
-        if (!visible || !groupRef.current) return;
-        // Rotación sutil que sigue al ratón
-        const targetRotY = mousePos.x * (Math.PI / 10);
-        const targetRotX = mousePos.y * (Math.PI / 20);
-        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, 0.05);
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetRotX, 0.05);
+    useFrame((state) => {
+        if (!groupRef.current || !isActive) return;
+        
+        // El robot sigue sutilmente el movimiento del ratón/dedo
+        const targetRotationY = state.mouse.x * (Math.PI / 10); 
+        const targetRotationX = -state.mouse.y * (Math.PI / 20); 
+        
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotationY, 0.1);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, targetRotationX, 0.1);
+        
+        // Flotación sutil de respiración
+        const t = state.clock.getElapsedTime();
+        groupRef.current.position.y = -2.5 + Math.sin(t * 0.5) * 0.1;
     });
 
     return (
-        <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-            <group ref={groupRef} position={[0, -3.5, -0.5]} visible={visible}> 
-                <primitive object={scene} scale={4.2} /> {/* 🚀 Escalado imponente */}
-            </group>
-        </Float>
+        <group ref={groupRef} position={[0, -2.5, 0]}> 
+            {/* Escala aumentada para que el busto llene el marco */}
+            <primitive object={scene} scale={3.5} /> 
+        </group>
     );
 }
 
-// --- 3. PANEL PRINCIPAL HÍBRIDO ---
+// --- 2. EL TÚNEL DE PARTÍCULAS (Integrado) ---
+function Starfield({ isActive }: { isActive: boolean }) {
+    return (
+        <group scale={1.5}>
+            <Stars 
+                radius={10} 
+                depth={50} 
+                count={2000} 
+                factor={4} 
+                saturation={0} 
+                fade 
+                speed={isActive ? 2 : 0.5} 
+            />
+        </group>
+    );
+}
+
+// --- 3. COMPONENTE PRINCIPAL ---
 export default function IARobotTracker({ isActive }: { isActive: boolean }) {
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    const lightBallRef = useRef<HTMLDivElement>(null);
-
-    const handlePointerMove = (e: React.PointerEvent) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        setMousePos({ x, y });
-
-        if (lightBallRef.current) {
-            lightBallRef.current.style.transform = `translate(${e.clientX - rect.left}px, ${e.clientY - rect.top}px)`;
+    
+    // Generamos el fondo tecnológico (Azul profundo a Negro)
+    const techBackground = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024; canvas.height = 1024;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 800);
+            grad.addColorStop(0, '#0f172a'); // Slate 900
+            grad.addColorStop(1, '#000000');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 1024, 1024);
         }
-    };
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+    }, []);
 
     return (
         <group>
-            {/* CAPA 1: EL MARCO HTML (HUD Tecnológico) */}
-            <Html 
-                transform 
-                center 
-                distanceFactor={8} 
-                position={[0, 0, 0.2]} // 🚀 Un poco por delante del robot
-                style={{
-                    pointerEvents: isActive ? 'auto' : 'none',
-                    opacity: isActive ? 1 : 0,
-                    transition: 'opacity 0.8s ease-in-out'
-                }}
-            >
-                <div 
-                    className="relative w-[850px] h-[550px] border border-cyan-500/20 bg-black/40 rounded-3xl overflow-hidden cursor-crosshair touch-none backdrop-blur-[2px]"
-                    onPointerMove={handlePointerMove}
-                >
-                    {/* UI HUD: Esquinas y datos técnicos */}
-                    <div className="absolute inset-0 p-10 flex flex-col justify-between pointer-events-none">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                                <h2 className="text-7xl font-black text-cyan-400 tracking-tighter uppercase italic">AI ENGINE</h2>
-                                <p className="text-cyan-400/50 font-mono text-sm tracking-[0.3em]">CORE V.O.I.D // NEURAL LINK</p>
-                            </div>
-                            <div className="text-right font-mono text-[10px] text-cyan-400/30">
-                                <p>STATUS: ACTIVE</p>
-                                <p>LATENCY: 0.002ms</p>
-                                <p>SYNC: STABLE</p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-end border-t border-cyan-500/10 pt-6">
-                            <div className="text-cyan-400/40 font-mono text-[10px] uppercase">
-                                Neural Architecture // 2026
-                            </div>
-                            <div className="w-32 h-1 bg-cyan-900/50 overflow-hidden">
-                                <div className="h-full bg-cyan-400 w-1/2 animate-[pulse_2s_infinite]" />
-                            </div>
-                        </div>
-                    </div>
+            {/* 💡 ILUMINACIÓN DE PRECISIÓN (Cian Cyberpunk) */}
+            <pointLight position={[0, 0, 5]} intensity={isActive ? 40 : 0} color="#00ffff" />
+            <spotLight 
+                position={[5, 5, 5]} 
+                angle={0.15} 
+                penumbra={1} 
+                intensity={isActive ? 20 : 0} 
+                color="#ffffff" 
+            />
+            <Environment preset="night" />
 
-                    {/* Efecto de escaneo horizontal sutil */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent h-20 w-full animate-[scan_4s_linear_infinite] pointer-events-none" />
+            {/* CAPA 1: FONDO TÉCNICO */}
+            <mesh position={[0, 0, -0.1]}>
+                <planeGeometry args={[16.5, 9.5]} />
+                <meshBasicMaterial map={techBackground} transparent opacity={isActive ? 1 : 0.4} />
+            </mesh>
 
-                    {/* ORBE DE LUZ TÁCTIL */}
-                    <div ref={lightBallRef} className="absolute left-0 top-0 w-0 h-0 pointer-events-none z-50">
-                        <div className="absolute -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl" />
-                    </div>
-                </div>
-            </Html>
+            {/* CAPA 2: SISTEMA DE PARTÍCULAS (Z-Depth medio) */}
+            <group position={[0, 0, 0.5]}>
+                <Starfield isActive={isActive} />
+            </group>
 
-            {/* CAPA 2: LUCES Y MOTOR 3D */}
-            <spotLight position={[5, 5, 10]} intensity={isActive ? 10 : 0} color="#00ffff" angle={0.5} />
-            <pointLight position={[0, 0, 5]} intensity={isActive ? 2 : 0} color="#ffffff" />
-            
-            <Suspense fallback={null}>
-                <StarfieldParticles count={2500} visible={isActive} />
-                <RobotModel visible={isActive} mousePos={mousePos} />
-            </Suspense>
+            {/* CAPA 3: ROBOT (Hero) */}
+            <group position={[0, 0, 1.2]}>
+                <Suspense fallback={null}>
+                    <RobotModel isActive={isActive} />
+                </Suspense>
+            </group>
+
+            {/* CAPA 4: EL ORBE DE LUZ (Ahora es un objeto 3D real) */}
+            <OrbeSeguimiento isActive={isActive} />
         </group>
+    );
+}
+
+// --- 4. ORBE DE LUZ 3D (Sigue al ratón en el espacio del widget) ---
+function OrbeSeguimiento({ isActive }: { isActive: boolean }) {
+    const meshRef = useRef<THREE.Mesh>(null);
+
+    useFrame((state) => {
+        if (!meshRef.current || !isActive) return;
+        // Mapeamos el ratón al tamaño del widget
+        const x = state.mouse.x * 7;
+        const y = state.mouse.y * 4;
+        meshRef.current.position.set(x, y, 2.5);
+    });
+
+    return (
+        <mesh ref={meshRef}>
+            <sphereGeometry args={[0.2, 16, 16]} />
+            <meshBasicMaterial color="#ffffff" />
+            <pointLight intensity={isActive ? 30 : 0} color="#00ffff" distance={10} />
+            {/* Halo de resplandor */}
+            <mesh scale={4}>
+                <sphereGeometry args={[0.3, 16, 16]} />
+                <meshBasicMaterial color="#00ffff" transparent opacity={0.1} />
+            </mesh>
+        </mesh>
     );
 }
 
