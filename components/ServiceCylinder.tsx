@@ -5,6 +5,7 @@ import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
+// --- SUBCOMPONENTE: CADA BANNER INDIVIDUAL ---
 function ServiceBanner({ title, index, total, rotationY, radius, heightStep, size, dragDistance }: {
    title: string,
    index: number,
@@ -105,6 +106,7 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
    );
 }
 
+// --- COMPONENTE PRINCIPAL: EL CILINDRO ---
 export default function ServiceCylinder() {
    const { language } = useLanguage();
    const { size } = useThree();
@@ -128,14 +130,16 @@ export default function ServiceCylinder() {
    const velocity = useRef(0);
    const isDragging = useRef(false);
    
-   // AHORA RASTREAMOS LA X (Horizontal)
+   // Variables para diferenciar Scroll Vertical vs Arrastre Horizontal
    const lastX = useRef(0);
    const dragDistance = useRef(0);
+   const startPos = useRef({ x: 0, y: 0 });
+   const isVerticalScroll = useRef(false);
 
    useFrame(() => {
        if (!isDragging.current) {
            velocity.current *= 0.95;
-           rotRef.current -= (0.0015 + velocity.current); // Rotación automática constante
+           rotRef.current -= (0.0015 + velocity.current); // Auto-rotación sutil
        } else {
            velocity.current *= 0.8;
        }
@@ -144,36 +148,50 @@ export default function ServiceCylinder() {
 
    const handlePointerDown = (e: any) => {
        isDragging.current = true;
-       // Captura multi-dispositivo de la coordenada X
-       lastX.current = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
+       isVerticalScroll.current = false;
+       
+       const clientX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
+       const clientY = e.clientY || (e.touches && e.touches[0].clientY) || e.nativeEvent?.clientY || 0;
+       
+       startPos.current = { x: clientX, y: clientY };
+       lastX.current = clientX;
        velocity.current = 0;
        dragDistance.current = 0;
    };
 
-   const handlePointerUp = () => {
-       isDragging.current = false;
+   const handlePointerMove = (e: any) => {
+       if (!isDragging.current || isVerticalScroll.current) return;
+
+       const currentX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
+       const currentY = e.clientY || (e.touches && e.touches[0].clientY) || e.nativeEvent?.clientY || 0;
+
+       // Distancia recorrida desde que se tocó la pantalla
+       const deltaX = Math.abs(currentX - startPos.current.x);
+       const deltaY = Math.abs(currentY - startPos.current.y);
+
+       // Si el usuario mueve el dedo en vertical (Scroll) abortamos la rotación del cilindro
+       if (deltaY > deltaX && deltaY > 10) {
+           isVerticalScroll.current = true;
+           return;
+       }
+
+       const pixelDelta = currentX - lastX.current;
+       dragDistance.current += Math.abs(pixelDelta);
+      
+       const delta = pixelDelta * 0.005;
+       velocity.current = delta;
+       rotRef.current += delta;
+       lastX.current = currentX;
    };
 
-   const handlePointerMove = (e: any) => {
-       if (isDragging.current) {
-           // Captura multi-dispositivo de la coordenada X
-           const currentX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
-           const pixelDelta = currentX - lastX.current;
-           
-           dragDistance.current += Math.abs(pixelDelta);
-          
-           // Sensibilidad ajustada para el arrastre horizontal
-           const delta = pixelDelta * 0.005;
-           velocity.current = delta;
-           
-           // Usamos += para que gire orgánicamente siguiendo la dirección de tu dedo
-           rotRef.current += delta;
-           lastX.current = currentX;
-       }
+   const handlePointerUp = () => {
+       isDragging.current = false;
+       isVerticalScroll.current = false;
    };
 
    return (
        <group>
+           {/* PARTÍCULAS AISLADAS */}
            <Sparkles 
                count={300} 
                scale={[RADIUS * 2, 15, RADIUS * 2]} 
@@ -183,6 +201,7 @@ export default function ServiceCylinder() {
                color="#ffffff" 
            />
 
+           {/* GRUPO INTERACTIVO DE BANNERS */}
            <group
                onPointerDown={handlePointerDown}
                onPointerUp={handlePointerUp}
