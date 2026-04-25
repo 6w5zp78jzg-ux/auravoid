@@ -1,5 +1,5 @@
 import './globals.css';
-import { Providers } from '@/components/Providers'; 
+import { Providers } from '../components/Providers'; 
 
 export const metadata = {
   title: 'AURA & VOID',
@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body style={{ margin: 0, background: 'black' }}>
+      <body className="bg-black">
         <Providers>
           {children}
         </Providers>
