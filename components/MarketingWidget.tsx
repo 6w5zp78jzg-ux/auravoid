@@ -1,15 +1,17 @@
 'use client';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import * as THREE from 'three';
 
 export default function MarketingWidget({ isActive }: { isActive: boolean }) {
-    const containerRef = useRef<HTMLDivElement>(null);
     const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
     const [dataStream, setDataStream] = useState<string>('0x000000');
     const [metrics, setMetrics] = useState({ a: 84, b: 92, c: 99 });
 
-    // Generador de datos (Siempre activo en segundo plano para evitar parpadeos)
+    // 1. Generador de datos (Tu lógica original mantenida)
     useEffect(() => {
+        if (!isActive) return;
         const interval = setInterval(() => {
             setDataStream('0x' + Math.random().toString(16).slice(2, 8).toUpperCase());
             setMetrics({
@@ -17,123 +19,124 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
                 b: Math.floor(85 + Math.random() * 14),
                 c: Math.floor(95 + Math.random() * 5),
             });
-        }, 120); // Un poco más lento para no saturar el hilo principal del iPad
+        }, 80);
         return () => clearInterval(interval);
-    }, []);
+    }, [isActive]);
 
-    const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!isActive || !containerRef.current) return;
-        const rect = containerRef.current.getBoundingClientRect();
-        
-        let clientX, clientY;
-        if ('touches' in e) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = (e as React.MouseEvent).clientX;
-            clientY = (e as React.MouseEvent).clientY;
+    // 2. Fondo de cuadrícula táctica (Generado como textura para rendimiento)
+    const gridTexture = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d')!;
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
+        // Dibujar rejilla
+        for (let i = 0; i <= 512; i += 32) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
         }
-
-        const x = ((clientX - rect.left) / rect.width) * 100;
-        const y = ((clientY - rect.top) / rect.height) * 100;
-        setMousePos({ x, y });
-    };
-
-    // --- REGLA DE ORO: NUNCA DEVOLVER NULL ---
+        return new THREE.CanvasTexture(canvas);
+    }, []);
 
     return (
         <group>
-            <Html 
-                transform 
-                center 
-                distanceFactor={8} // 🚀 Tamaño Hero
-                position={[0, 0, 0.1]}
+            {/* CAPA 1: FONDO DE PANTALLA (Negro absoluto con rejilla) */}
+            <mesh position={[0, 0, -0.05]}>
+                <planeGeometry args={[16.5, 9.5]} />
+                <meshBasicMaterial 
+                    color="#020202"
+                    map={gridTexture}
+                    transparent
+                    opacity={isActive ? 1 : 0.3}
+                />
+            </mesh>
+
+            {/* CAPA 2: INTERFAZ HUD (HTML Transformado) */}
+            <Html
+                transform
+                center
+                distanceFactor={8.2}
+                occlude={false}
+                position={[0, 0, 0.1]} // Un poco adelantado para efecto cristal
                 style={{
+                    width: '800px',
+                    height: '500px',
+                    pointerEvents: 'none',
                     opacity: isActive ? 1 : 0,
-                    pointerEvents: isActive ? 'auto' : 'none',
-                    transition: 'opacity 0.8s ease-in-out',
-                    width: '850px',
-                    height: '550px'
+                    transition: 'all 0.6s ease',
                 }}
             >
                 <div 
-                    ref={containerRef}
-                    className="relative w-[850px] h-[550px] border border-cyan-500/20 bg-[#020202]/95 backdrop-blur-md rounded-3xl overflow-hidden cursor-crosshair font-mono shadow-[0_0_50px_rgba(0,0,0,0.9)]"
-                    onMouseMove={handleMove}
-                    onTouchMove={handleMove}
+                    className="relative w-full h-full font-mono text-cyan-400 select-none overflow-hidden border border-cyan-500/20 rounded-lg"
+                    style={{ background: 'rgba(0, 10, 20, 0.4)' }}
                 >
-                    {/* 1. CUADRÍCULA DE PRECISIÓN */}
-                    <div 
-                        className="absolute inset-0 opacity-10 pointer-events-none"
-                        style={{
-                            backgroundImage: 'linear-gradient(rgba(0,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,255,0.3) 1px, transparent 1px)',
-                            backgroundSize: '40px 40px',
-                            transform: `translate(${(mousePos.x - 50) * -0.3}px, ${(mousePos.y - 50) * -0.3}px)`
-                        }}
-                    />
-
-                    {/* 2. RADAR TÁCTICO CENTRAL */}
-                    <div 
-                        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                        style={{ transform: `translate(${(mousePos.x - 50) * 0.4}px, ${(mousePos.y - 50) * 0.4}px)` }}
-                    >
-                        {/* Anillos */}
-                        <div className="absolute w-[450px] h-[450px] border border-cyan-500/10 rounded-full border-dashed animate-[spin_20s_linear_infinite]" />
-                        <div className="absolute w-[300px] h-[300px] border border-cyan-500/20 rounded-full" />
-                        <div className="absolute w-[300px] h-[300px] rounded-full animate-[spin_4s_linear_infinite]" 
-                             style={{ background: 'conic-gradient(from 0deg, transparent 60%, rgba(0, 255, 255, 0.2) 100%)' }} 
+                    {/* Radar Central (Tu CSS original adaptado) */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-40">
+                        <div className="absolute w-[300px] h-[300px] border border-cyan-500/30 rounded-full border-dashed animate-[spin_15s_linear_infinite]" />
+                        <div className="absolute w-[200px] h-[200px] border border-cyan-500/50 rounded-full" />
+                        <div 
+                            className="absolute w-[200px] h-[200px] rounded-full animate-[spin_4s_linear_infinite]" 
+                            style={{ background: 'conic-gradient(from 0deg, transparent 70%, rgba(0, 255, 255, 0.3) 100%)' }} 
                         />
+                        <div className="w-10 h-10 border border-cyan-400/50 flex items-center justify-center">
+                            <div className="w-1 h-1 bg-white rounded-full animate-ping" />
+                        </div>
+                    </div>
+
+                    {/* HUD: DATOS SUPERIORES */}
+                    <div className="absolute top-0 w-full p-8 flex justify-between items-start">
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-cyan-500 animate-pulse" />
+                                <span className="text-xl font-bold tracking-[4px]">MARKETING.OS</span>
+                            </div>
+                            <span className="text-[10px] opacity-60 uppercase tracking-[2px]">Algorithm: Neural_Aura_v2.4</span>
+                            <span className="text-[10px] opacity-60">HASH: {dataStream}</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-xs block mb-1">SCANNING_MARKET...</span>
+                            <div className="w-32 h-1 bg-cyan-900 overflow-hidden">
+                                <div className="h-full bg-cyan-400 animate-[loading_2s_ease-in-out_infinite]" style={{ width: '40%' }} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* HUD: MÉTRICAS INFERIORES */}
+                    <div className="absolute bottom-0 w-full p-8 flex justify-between items-end bg-gradient-to-t from-cyan-950/40 to-transparent">
+                        <div className="flex gap-8">
+                            <div className="flex flex-col">
+                                <span className="text-[9px] opacity-50 tracking-[3px]">CTR_OPTIMIZATION</span>
+                                <span className="text-2xl font-light">{metrics.a}%</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[9px] opacity-50 tracking-[3px]">CONVERSION_RT</span>
+                                <span className="text-2xl font-light">{metrics.b}%</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[9px] opacity-50 tracking-[3px]">RETENTION_CORE</span>
+                                <span className="text-2xl font-light text-white">{metrics.c}%</span>
+                            </div>
+                        </div>
                         
-                        {/* Centro */}
-                        <div className="absolute w-12 h-12 border border-cyan-500/50 rotate-45" />
-                        <div className="absolute w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_20px_#00ffff]" />
-                    </div>
-
-                    {/* 3. OVERLAYS HUD (Datos imponentes) */}
-                    <div className="absolute inset-0 p-12 flex flex-col justify-between z-20 pointer-events-none">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-4">
-                                <h2 className="text-6xl font-black text-white tracking-tighter italic">
-                                    PRECISION<br/>
-                                    <span className="text-cyan-500">MARKETING</span>
-                                </h2>
-                                <div className="flex gap-4 text-[10px] text-cyan-500/60 font-bold uppercase">
-                                    <span className="bg-cyan-500/10 px-2 py-1 border border-cyan-500/20">ALG: AURA_V3</span>
-                                    <span className="bg-cyan-500/10 px-2 py-1 border border-cyan-500/20">TARGET: ACQUIRED</span>
-                                </div>
+                        <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px]">SYNC_STATUS</span>
+                                <div className="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]" />
                             </div>
-                            <div className="text-right">
-                                <div className="text-cyan-400 font-mono text-xl mb-1">{dataStream}</div>
-                                <div className="text-[10px] text-white/30 uppercase tracking-[4px]">Data Stream Hook</div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between items-end">
-                            <div className="grid grid-cols-3 gap-10 bg-black/60 p-6 rounded-2xl border border-white/5 backdrop-blur-xl">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-white/30 mb-1 uppercase tracking-widest">Efficiency</span>
-                                    <span className="text-3xl text-white font-bold">{metrics.a}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-white/30 mb-1 uppercase tracking-widest">Conversion</span>
-                                    <span className="text-3xl text-white font-bold">{metrics.b}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] text-white/30 mb-1 uppercase tracking-widest">ROI Delta</span>
-                                    <span className="text-3xl text-cyan-400 font-bold drop-shadow-[0_0_10px_rgba(0,255,255,0.5)]">{metrics.c}%</span>
-                                </div>
-                            </div>
-                            <div className="font-mono text-[9px] text-white/20 text-right">
-                                PSYCHOLOGICAL_ENGINEERING<br/>
-                                ARCHITECTURE_OF_DESIRE // 2026
-                            </div>
+                            <span className="text-[8px] opacity-40 uppercase">Global_V.O.I.D_Network</span>
                         </div>
                     </div>
 
-                    {/* Efecto Cristal y Escaneo */}
-                    <div className="absolute inset-0 shadow-[inset_0_0_100px_rgba(0,0,0,0.8)] pointer-events-none" />
+                    {/* Esquinas tácticas */}
+                    <div className="absolute top-4 left-4 w-8 h-8 border-t border-l border-cyan-500/50" />
+                    <div className="absolute top-4 right-4 w-8 h-8 border-t border-r border-cyan-500/50" />
+                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b border-l border-cyan-500/50" />
+                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b border-r border-cyan-500/50" />
                 </div>
             </Html>
+
+            {/* Efecto de resplandor cian ambiental en la rueda */}
+            <pointLight position={[0, 0, 2]} intensity={isActive ? 8 : 0} color="#00ffff" distance={10} />
         </group>
     );
 }
