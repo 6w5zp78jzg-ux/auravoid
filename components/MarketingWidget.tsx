@@ -8,7 +8,7 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
     const [dataStream, setDataStream] = useState<string>('0x000000');
     const [metrics, setMetrics] = useState({ a: 84, b: 92, c: 99 });
 
-    // 1. Generador de datos (Tu lógica original)
+    // 1. Generador de datos
     useEffect(() => {
         if (!isActive) return;
         const interval = setInterval(() => {
@@ -18,109 +18,119 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
                 b: Math.floor(85 + Math.random() * 14),
                 c: Math.floor(95 + Math.random() * 5),
             });
-        }, 80);
+        }, 100);
         return () => clearInterval(interval);
     }, [isActive]);
 
+    // 2. TEXTURA TÉCNICA (Fondo + Radar estático para evitar fallos de render)
+    const techTexture = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024; canvas.height = 512;
+        const ctx = canvas.getContext('2d')!;
+        
+        // Fondo base
+        ctx.fillStyle = '#01080f';
+        ctx.fillRect(0, 0, 1024, 512);
+        
+        // Rejilla Cian
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 1024; i += 40) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+        }
+        for (let i = 0; i <= 512; i += 40) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
+        }
+
+        // Radar Circular Estático (Decorativo)
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+        ctx.beginPath(); ctx.arc(512, 256, 180, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(512, 256, 120, 0, Math.PI * 2); ctx.stroke();
+        
+        return new THREE.CanvasTexture(canvas);
+    }, []);
+
     return (
         <group>
-            {/* 💡 LUZ LOCAL POTENCIADA: Para que el panel no sea un agujero negro */}
-            <pointLight position={[0, 0, 5]} intensity={isActive ? 30 : 0} color="#00ffff" />
-            <ambientLight intensity={isActive ? 0.5 : 0} />
+            {/* LUZ DE APOYO */}
+            <pointLight position={[0, 0, 4]} intensity={isActive ? 25 : 0} color="#00ffff" />
 
-            {/* CAPA 1: FONDO TÉCNICO (Material con luz propia) */}
+            {/* CAPA 1: EL PANEL (Ahora con la textura técnica incorporada) */}
             <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
                 <meshStandardMaterial 
-                    color="#000810" 
-                    emissive="#001a2c" // Luz azul muy sutil de fondo
-                    emissiveIntensity={isActive ? 1 : 0}
-                    roughness={0.3}
+                    map={techTexture}
+                    emissive="#00ffff"
+                    emissiveIntensity={isActive ? 0.15 : 0}
                     metalness={0.8}
+                    roughness={0.2}
                 />
             </mesh>
 
-            {/* CAPA 2: INTERFAZ HUD (Adelantada a Z=0.5 para Safari) */}
+            {/* CAPA 2: DATOS DINÁMICOS (HTML Ultraligero) */}
             <Html
                 transform
                 center
-                distanceFactor={8.2}
+                distanceFactor={8.5} // Ajustado para que encaje
                 occlude={false}
-                position={[0, 0, 0.5]} // 🚀 Adelantado para evitar el panel negro
+                position={[0, 0, 0.2]} // Un poco por delante del panel
                 style={{
                     width: '800px',
                     height: '500px',
                     pointerEvents: 'none',
                     opacity: isActive ? 1 : 0,
-                    transition: 'opacity 0.6s ease-in-out',
+                    transition: 'opacity 0.5s ease',
                 }}
             >
-                <div 
-                    className="relative w-full h-full font-mono text-cyan-400 select-none flex flex-col justify-between p-10 border-2 border-cyan-500/30 rounded-xl"
-                    style={{ 
-                        background: 'rgba(2, 10, 20, 0.9)', // Fondo casi opaco para forzar visibilidad
-                        boxShadow: 'inset 0 0 100px rgba(0, 255, 255, 0.1)'
-                    }}
-                >
-                    {/* Radar Central Mejorado */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
-                        <div className="absolute w-[350px] h-[350px] border-2 border-cyan-500/20 rounded-full animate-[spin_20s_linear_infinite]" />
-                        <div className="absolute w-[250px] h-[250px] border border-cyan-500/40 rounded-full" />
+                <div className="w-full h-full font-mono text-cyan-400 p-10 flex flex-col justify-between border border-cyan-500/20">
+                    
+                    {/* CABECERA */}
+                    <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-cyan-400 animate-pulse" />
+                                <span className="text-2xl font-black tracking-tighter">MARKETING_NODE</span>
+                            </div>
+                            <span className="text-[10px] opacity-60">ALGO_TARGET: AURA_V3</span>
+                            <span className="text-[10px] text-white/40 font-bold uppercase">Hash_Stream: {dataStream}</span>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-[9px] border border-cyan-500 px-2 py-1">ACQUIRING_LIVE_DATA</div>
+                        </div>
+                    </div>
+
+                    {/* RADAR ANIMADO (Solo el barrido por CSS) */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-30">
                         <div 
-                            className="absolute w-[250px] h-[250px] rounded-full animate-[spin_5s_linear_infinite]" 
-                            style={{ background: 'conic-gradient(from 0deg, transparent 60%, rgba(0, 255, 255, 0.4) 100%)' }} 
+                            className="w-[280px] h-[280px] rounded-full animate-[spin_4s_linear_infinite]" 
+                            style={{ background: 'conic-gradient(from 0deg, transparent 70%, #00ffff 100%)' }} 
                         />
                     </div>
 
-                    {/* SECCIÓN SUPERIOR: SYSTEM STATUS */}
-                    <div className="z-10 flex justify-between">
-                        <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 bg-cyan-400 animate-ping" />
-                                <h2 className="text-3xl font-bold tracking-[6px]">MARKETING_AI</h2>
-                            </div>
-                            <div className="text-[11px] opacity-70 flex flex-col tracking-widest">
-                                <span>STATUS: ACTIVE_TARGETING</span>
-                                <span>STREAM: {dataStream}</span>
-                                <span className="text-white/40">NODE: V.O.I.D_SERVER_01</span>
-                            </div>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                            <div className="px-3 py-1 border border-cyan-500 text-[10px] bg-cyan-500/10">
-                                ENLACE COGNITIVO_ON
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SECCIÓN INFERIOR: MÉTRICAS DATA */}
-                    <div className="z-10 flex justify-between items-end border-t border-cyan-500/20 pt-8">
-                        <div className="flex gap-12">
+                    {/* MÉTRICAS (Lo más importante) */}
+                    <div className="flex justify-between items-end z-10">
+                        <div className="flex gap-10">
                             <div className="flex flex-col">
-                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">CTR_RT</span>
-                                <span className="text-4xl font-light text-white">{metrics.a}%</span>
+                                <span className="text-[9px] opacity-50 uppercase tracking-[3px]">CTR_CORE</span>
+                                <span className="text-5xl font-bold text-white">{metrics.a}%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">CONV_OPT</span>
-                                <span className="text-4xl font-light text-white">{metrics.b}%</span>
+                                <span className="text-[9px] opacity-50 uppercase tracking-[3px]">CONV_OPT</span>
+                                <span className="text-5xl font-bold text-white">{metrics.b}%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">RET_SCORE</span>
-                                <span className="text-4xl font-bold text-cyan-400 shadow-cyan-500">{metrics.c}%</span>
+                                <span className="text-[9px] opacity-50 uppercase tracking-[3px]">LOYALTY</span>
+                                <span className="text-5xl font-bold text-cyan-400">{metrics.c}%</span>
                             </div>
                         </div>
                         
-                        <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2 text-green-400 text-[10px] font-bold">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                LIVE_FEED
+                        <div className="flex flex-col items-end">
+                            <span className="text-[8px] opacity-40">ENLACE_COGNITIVO_SYNC</span>
+                            <div className="flex gap-1">
+                                {[1,2,3,4].map(i => <div key={i} className="w-1 h-3 bg-cyan-500/40 animate-pulse" style={{animationDelay: `${i*0.2}s`}} />)}
                             </div>
-                            <span className="text-[8px] opacity-30">© AURAVOID_MARKETING_UNIT</span>
                         </div>
                     </div>
-
-                    {/* Esquinas tácticas clásicas */}
-                    <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-cyan-500/40" />
-                    <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 border-cyan-500/40" />
                 </div>
             </Html>
         </group>
