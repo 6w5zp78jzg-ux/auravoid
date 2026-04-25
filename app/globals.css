@@ -1,0 +1,17 @@
+/* app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+body { 
+    margin: 0; 
+    background: #050505 !important; 
+    color: white; 
+    font-family: 'Cinzel', serif; 
+    /* ELIMINAMOS el overflow: hidden que mataba el scroll */
+    overflow-x: hidden; 
+    overflow-y: auto; 
+    
+    user-select: none; 
+    -webkit-user-select: none;
+    touch-action: manipulation; /* Permite scroll natural */
+}
