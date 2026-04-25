@@ -1,7 +1,7 @@
 'use client';
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges, SpotLight, Html } from '@react-three/drei';
+import { Edges, SpotLight } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
@@ -26,8 +26,12 @@ function PanelFrame({ color, isFront }: { color: string, isFront: boolean }) {
 
    return (
        <mesh geometry={geometry}>
-           <meshStandardMaterial color="#050505" roughness={0.9} metalness={0.5} />
-           <Edges scale={1.002} threshold={15} color={color} transparent opacity={isFront ? 1 : 0.4} />
+           <meshStandardMaterial 
+              color="#020202" 
+              roughness={0.9} 
+              metalness={0.5} 
+           />
+           <Edges scale={1.002} threshold={15} color={color} transparent opacity={isFront ? 1 : 0.3} />
        </mesh>
    );
 }
@@ -79,47 +83,31 @@ export default function ServiceWheelContent() {
    return (
        <group
            ref={groupRef}
-           position={[0, 6, 0]} // Subido un poco más para máxima distancia del logo
+           position={[0, 6.5, 0]} // Elevado para que sea protagonista absoluto
            onPointerDown={handlePointerDown}
            onPointerMove={handlePointerMove}
            onPointerUp={handlePointerUp}
            onPointerLeave={handlePointerUp}
        >
-           <SpotLight position={[0, 0, 15]} angle={0.5} intensity={5} color="#ffffff" />
+           <ambientLight intensity={0.5} />
+           <pointLight position={[0, 0, 10]} intensity={2} color="#ffffff" />
 
            {WIDGETS_DATA.map((widget, i) => {
-               const radius = 12; // Radio hero
+               const radius = 12.5; 
                const angle = (i / 5) * Math.PI * 2;
                const isFront = i === activeIndex;
 
                return (
                    <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
                        
+                       {/* ESTRUCTURA FÍSICA */}
                        <PanelFrame color={widget.color} isFront={isFront} />
 
-                       {/* IMPORTANTE: Usamos el componente <Html> directamente aquí para envolver tu widget.
-                         Forzamos un contenedor con dimensiones fijas que coincidan con el panel (16x9 aprox).
-                       */}
-                       <Html
-                         transform
-                         distanceFactor={10}
-                         position={[0, 0, 0.25]}
-                         occlude={false} // Para que no desaparezca si algo se cruza
-                         style={{
-                           width: '800px',  // Dimensión base para el CSS interno
-                           height: '500px',
-                           display: 'flex',
-                           alignItems: 'center',
-                           justifyContent: 'center',
-                           pointerEvents: isFront ? 'auto' : 'none',
-                           opacity: isFront ? 1 : 0, // Solo mostramos el del frente para salvar Safari
-                           transition: 'opacity 0.5s ease'
-                         }}
-                       >
-                           <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                             <widget.Component isActive={isFront} />
-                           </div>
-                       </Html>
+                       {/* EL WIDGET (Sin capas extra de HTML para evitar conflictos) */}
+                       {/* Se posiciona ligeramente delante del marco negro */}
+                       <group position={[0, 0, 0.25]}>
+                           <widget.Component isActive={isFront} />
+                       </group>
 
                    </group>
                );
