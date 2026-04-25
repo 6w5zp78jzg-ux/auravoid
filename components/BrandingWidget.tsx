@@ -1,40 +1,38 @@
+
 'use client';
-import React, { useRef, useState, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text3D, Center } from '@react-three/drei';
+import React, { useRef, useState } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Text3D, Center, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers'; 
 
-// --- 1. SUB-COMPONENTE: LA LINTERNA (Foco Perpendicular y Potenciado) ---
+// --- 1. LINTERNA (Intacta, adaptada al espacio global) ---
 function Flashlight({ isActive }: { isActive: boolean }) {
     const lightRef = useRef<THREE.PointLight>(null);
-    const { mouse, viewport } = useThree();
+    const { mouse } = useThree();
 
     useFrame(() => {
         if (!lightRef.current || !isActive) return;
         
-        const x = (mouse.x * viewport.width) / 2;
-        const y = (mouse.y * viewport.height) / 2;
+        // Multiplicamos por un factor para que cubra bien el widget
+        const x = mouse.x * 4;
+        const y = mouse.y * 3;
         
-        // 🚀 ENFOQUE PERPENDICULAR: Alejamos la luz a Z=3.5
-        // Esto hace que la luz "bañe" el texto desde más atrás y con un radio mayor
         lightRef.current.position.set(x, y, 3.5); 
     });
 
     return (
         <pointLight 
             ref={lightRef} 
-            // 🚀 POTENCIA +50%: Subimos a 85 para un brillo premium
             intensity={isActive ? 85 : 0} 
             color="#ffffff" 
-            // 🚀 RADIO +50%: Ampliamos el rango de alcance
             distance={25} 
             decay={2}
         />
     );
 }
 
-// --- 2. SUB-COMPONENTE: FOCOS MÓVILES (Intensidad 15) ---
+// --- 2. FOCOS MÓVILES (Intactos) ---
 function MovingSpotlights() {
     const groupRef = useRef<THREE.Group>(null);
 
@@ -54,7 +52,7 @@ function MovingSpotlights() {
     );
 }
 
-// --- 3. SUB-COMPONENTE: OBSIDIANA PURA ---
+// --- 3. OBSIDIANA PURA (Intacta) ---
 function ObsidianText({ language }: { language: string }) {
     const textRef = useRef<THREE.Group>(null);
     const TEXTOS = {
@@ -81,7 +79,7 @@ function ObsidianText({ language }: { language: string }) {
     const fontUrl = "https://unpkg.com/three/examples/fonts/helvetiker_bold.typeface.json";
 
     return (
-        <group ref={textRef} position={[0, 0.4, 0]}>
+        <group ref={textRef} position={[0, 0, 0]}>
             <Center top position={[0, 0.4, 0]}>
                 <Text3D font={fontUrl} size={0.5} height={0.15} curveSegments={12} bevelEnabled bevelThickness={0.02} bevelSize={0.02} bevelOffset={0} bevelSegments={5}>
                     {currentText.mainL1}
@@ -104,40 +102,37 @@ function ObsidianText({ language }: { language: string }) {
     );
 }
 
-// --- 4. PANEL PRINCIPAL ---
+// --- 4. PANEL PRINCIPAL (El Híbrido WebGL + HTML) ---
 export default function BrandingWidget({ isActive }: { isActive: boolean }) {
     const { language } = useLanguage();
     const [isInteracting, setIsInteracting] = useState(false);
 
+    if (!isActive) return null;
+
     return (
-        <div 
-            className="relative w-full h-[350px] mb-12 border border-white/5 rounded-xl overflow-hidden cursor-none touch-none"
-            onMouseEnter={() => setIsInteracting(true)}
-            onMouseLeave={() => setIsInteracting(false)}
-            onTouchStart={() => setIsInteracting(true)}
-            onTouchEnd={() => setIsInteracting(false)}
+        // El widget ahora devuelve un <group> nativo de Three.js
+        <group 
+            onPointerOver={() => setIsInteracting(true)}
+            onPointerOut={() => setIsInteracting(false)}
         >
-            {/* FONDO BURDEOS POTENCIADO */}
-            <div 
-                className="absolute inset-0 z-0 pointer-events-none" 
-                style={{ 
-                    background: 'radial-gradient(circle at 50% 50%, #820620 0%, #3d020e 65%, #000000 100%)' 
-                }} 
-            />
+            {/* CAPA 1: EL FONDO HTML (Renderizado en el espacio 3D detrás del texto) */}
+            {/* position Z negativa lo empuja hacia el fondo para que el 3D flote delante */}
+            <Html transform center distanceFactor={12} position={[0, 0, -0.5]}>
+                <div className="relative w-[500px] h-[350px] border border-white/5 rounded-xl overflow-hidden pointer-events-none">
+                    <div 
+                        className="absolute inset-0 z-0" 
+                        style={{ background: 'radial-gradient(circle at 50% 50%, #820620 0%, #3d020e 65%, #000000 100%)' }} 
+                    />
+                    <div className="absolute top-4 left-4 text-[10px] tracking-[2px] text-white/40 uppercase font-mono z-20">
+                        PR Legacy Core V.O.I.D.
+                    </div>
+                </div>
+            </Html>
 
-            <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 0, 5], fov: 50 }} className="z-10">
-                <ambientLight intensity={0.02} />
-                
-                <Suspense fallback={null}>
-                    <ObsidianText language={language} />
-                    <Flashlight isActive={isActive && isInteracting} />
-                    <MovingSpotlights />
-                </Suspense>
-            </Canvas>
-
-            <div className="absolute top-2 left-2 text-[8px] tracking-[2px] text-white/40 uppercase font-mono pointer-events-none z-20">
-                PR Legacy Core V.O.I.D.
-            </div>
-        </div>
+            {/* CAPA 2: LOS ELEMENTOS 3D NATIVOS (Flotan sobre el HTML) */}
+            <ObsidianText language={language} />
+            <Flashlight isActive={isActive && isInteracting} />
+            <MovingSpotlights />
+        </group>
     );
 }
