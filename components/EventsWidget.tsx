@@ -1,51 +1,95 @@
 'use client';
-import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { useRef, useMemo, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Float, ContactShadows, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
+// --- 1. GEOMETRÍA DE LUJO CON ARRASTRE ---
 function LuxuryGeometry({ isActive }: { isActive: boolean }) {
-    const groupRef = useRef<THREE.Group>(null);
+    const meshRef = useRef<THREE.Group>(null);
+    const { size } = useThree();
+    
+    // Estado interno de la física de la bola
+    const isDraggingBall = useRef(false);
+    const mousePos = useRef({ x: 0, y: 0 });
+    const rotation = useRef({ x: 0, y: 0 });
+    const velocity = useRef({ x: 0, y: 0 });
+
+    const handlePointerDown = (e: any) => {
+        if (!isActive) return;
+        // 🚀 CRÍTICO: Detiene el evento para que la RUEDA no se mueva
+        e.stopPropagation(); 
+        e.target.setPointerCapture(e.pointerId);
+        
+        isDraggingBall.current = true;
+        mousePos.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handlePointerMove = (e: any) => {
+        if (!isDraggingBall.current || !isActive) return;
+
+        const deltaX = e.clientX - mousePos.current.x;
+        const deltaY = e.clientY - mousePos.current.y;
+
+        // Sensibilidad del arrastre de la bola
+        const sensitivity = 0.005;
+        velocity.current.y = deltaX * sensitivity;
+        velocity.current.x = deltaY * sensitivity;
+
+        mousePos.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const handlePointerUp = (e: any) => {
+        isDraggingBall.current = false;
+        if(e.target.releasePointerCapture) e.target.releasePointerCapture(e.pointerId);
+    };
 
     useFrame((state) => {
-        if (!groupRef.current || !isActive) return;
+        if (!meshRef.current) return;
+
+        // Aplicamos inercia
+        rotation.current.y += velocity.current.y;
+        rotation.current.x += velocity.current.x;
+        velocity.current.y *= 0.95; // Fricción
+        velocity.current.x *= 0.95;
+
+        // Movimiento automático muy leve
         const t = state.clock.getElapsedTime();
-        groupRef.current.rotation.y = t * 0.3;
-        groupRef.current.rotation.x = Math.sin(t * 0.2) * 0.1;
+        meshRef.current.rotation.y = rotation.current.y + Math.sin(t * 0.1) * 0.05;
+        meshRef.current.rotation.x = THREE.MathUtils.clamp(rotation.current.x, -0.5, 0.5);
     });
 
     return (
-        <group ref={groupRef}>
+        <group 
+            ref={meshRef} 
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+        >
             <Environment preset="city" />
-            <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
-                {/* NÚCLEO: Oro */}
-                <mesh scale={1.4}>
+            <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
+                {/* NÚCLEO ORO */}
+                <mesh scale={1.5}>
                     <icosahedronGeometry args={[1, 0]} />
-                    <meshStandardMaterial 
-                        color="#c5a059" 
-                        metalness={1} 
-                        roughness={0.1} 
-                        emissive="#c5a059"
-                        emissiveIntensity={0.2}
-                    />
+                    <meshStandardMaterial color="#c5a059" metalness={1} roughness={0.1} emissive="#c5a059" emissiveIntensity={0.1} />
                 </mesh>
                 
-                {/* CORAZA: Cristal */}
+                {/* CORAZA CRISTAL */}
                 <mesh scale={2.4}>
                     <icosahedronGeometry args={[1, 1]} />
                     <meshPhysicalMaterial 
-                        transmission={1}
-                        thickness={2.5}
-                        roughness={0.02}
-                        ior={1.5}
-                        color="#ffffff"
-                        transparent
-                        opacity={isActive ? 1 : 0.3}
+                        transmission={1} 
+                        thickness={2} 
+                        roughness={0.02} 
+                        ior={1.5} 
+                        color="#ffffff" 
+                        transparent 
+                        opacity={isActive ? 1 : 0.3} 
                     />
                 </mesh>
 
-                {/* ESTRUCTURA: Wireframe Oro */}
-                <mesh scale={2.41}>
+                {/* ESTRUCTURA WIREFRAME */}
+                <mesh scale={2.42}>
                     <icosahedronGeometry args={[1, 1]} />
                     <meshStandardMaterial color="#c5a059" metalness={1} wireframe />
                 </mesh>
@@ -54,33 +98,20 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
     );
 }
 
+// --- 2. PANEL PRINCIPAL ---
 export default function EventsWidget({ isActive }: { isActive: boolean }) {
     
-    // 🎨 GENERAMOS EL FONDO PERLA (En lugar de HTML)
     const pearlTexture = useMemo(() => {
         const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 1024;
+        canvas.width = 1024; canvas.height = 1024;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            // Recreamos tu radial-gradient original: #ffffff 0%, #FAF9F6 50%, #d1cfc8 100%
             const grad = ctx.createRadialGradient(512, 0, 0, 512, 0, 1024);
-            grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.5, '#FAF9F6');
-            grad.addColorStop(1, '#d1cfc8');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 1024, 1024);
-
-            // Dibujamos el texto de "Events" directamente para que sea nítido
-            ctx.fillStyle = '#44403c'; // stone-800
-            ctx.font = '300 80px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.letterSpacing = "25px";
+            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.5, '#FAF9F6'); grad.addColorStop(1, '#d1cfc8');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, 1024, 1024);
+            ctx.fillStyle = '#44403c'; ctx.font = '300 80px sans-serif'; ctx.textAlign = 'left';
             ctx.fillText('EVENTS', 100, 200);
-
-            // Línea decorativa
-            ctx.fillStyle = '#a8a29e'; // stone-400
-            ctx.fillRect(100, 240, 300, 4);
+            ctx.fillStyle = '#a8a29e'; ctx.fillRect(100, 240, 300, 4);
         }
         const tex = new THREE.CanvasTexture(canvas);
         tex.colorSpace = THREE.SRGBColorSpace;
@@ -89,33 +120,23 @@ export default function EventsWidget({ isActive }: { isActive: boolean }) {
 
     return (
         <group>
-            {/* 💡 ILUMINACIÓN PROPIA (Fuerte para resaltar el blanco) */}
-            <pointLight position={[5, 5, 5]} intensity={isActive ? 60 : 0} color="#ffffff" />
-            <ambientLight intensity={isActive ? 0.8 : 0} />
+            {/* ILUMINACIÓN */}
+            <pointLight position={[5, 5, 5]} intensity={isActive ? 50 : 0} />
+            <ambientLight intensity={isActive ? 0.6 : 0} />
 
-            {/* CAPA 1: EL FONDO CLARO (Malla nativa, no más negro) */}
+            {/* FONDO CLARO 
+                🚀 NO detener propagación aquí para que la RUEDA pueda girar */}
             <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
-                <meshBasicMaterial 
-                    map={pearlTexture} 
-                    transparent 
-                    opacity={isActive ? 1 : 0.4} 
-                />
+                <meshBasicMaterial map={pearlTexture} transparent opacity={isActive ? 1 : 0.4} />
             </mesh>
 
-            {/* CAPA 2: LA JOYA 3D (Flotando por delante) */}
-            <group position={[0, 0, 1.2]}>
+            {/* LA BOLA INTERACTIVA (Z adelantado) */}
+            <group position={[0, 0, 1.3]}>
                 <LuxuryGeometry isActive={isActive} />
             </group>
             
-            {/* Sombra proyectada sobre el fondo claro */}
-            <ContactShadows 
-                position={[0, -4.5, 0]} 
-                opacity={isActive ? 0.6 : 0} 
-                scale={15} 
-                blur={2.5} 
-                color="#c5a059" 
-            />
+            <ContactShadows position={[0, -4.5, 0]} opacity={isActive ? 0.6 : 0} scale={15} blur={2.5} color="#c5a059" />
         </group>
     );
 }
