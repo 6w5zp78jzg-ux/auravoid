@@ -18,6 +18,7 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
 }) {
    const meshRef = useRef<THREE.Mesh>(null);
 
+   // Generación de la textura del banner (Cristal + Texto)
    const texture = useMemo(() => {
        const c = document.createElement('canvas');
        const ctx = c.getContext('2d');
@@ -50,12 +51,11 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
        ctx.fillStyle = shine;
        ctx.fillRect(margin, margin, pWidth, pHeight);
 
-       // --- 2. BORDE NEÓN DE 1 PÍXEL ---
+       // --- 2. BORDE NEÓN ---
        ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
        ctx.shadowBlur = 15;                         
        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
        ctx.lineWidth = 1;                           
-      
        ctx.strokeRect(margin, margin, pWidth, pHeight);
        ctx.shadowBlur = 0;
 
@@ -92,7 +92,7 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
        }
    });
 
-   const handlePointerUp = (e: any) => {
+   const handlePointerUp = () => {
        if (dragDistance.current < 15) {
            window.dispatchEvent(new CustomEvent('open-service', { detail: index }));
        }
@@ -106,7 +106,7 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
    );
 }
 
-// --- COMPONENTE PRINCIPAL: EL CILINDRO ---
+// --- COMPONENTE PRINCIPAL ---
 export default function ServiceCylinder() {
    const { language } = useLanguage();
    const { size } = useThree();
@@ -130,7 +130,7 @@ export default function ServiceCylinder() {
    const velocity = useRef(0);
    const isDragging = useRef(false);
    
-   // Variables para diferenciar Scroll Vertical vs Arrastre Horizontal
+   // Referencias de control de gestos
    const lastX = useRef(0);
    const dragDistance = useRef(0);
    const startPos = useRef({ x: 0, y: 0 });
@@ -139,7 +139,7 @@ export default function ServiceCylinder() {
    useFrame(() => {
        if (!isDragging.current) {
            velocity.current *= 0.95;
-           rotRef.current -= (0.0015 + velocity.current); // Auto-rotación sutil
+           rotRef.current -= (0.0015 + velocity.current);
        } else {
            velocity.current *= 0.8;
        }
@@ -165,11 +165,11 @@ export default function ServiceCylinder() {
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
        const currentY = e.clientY || (e.touches && e.touches[0].clientY) || e.nativeEvent?.clientY || 0;
 
-       // Distancia recorrida desde que se tocó la pantalla
        const deltaX = Math.abs(currentX - startPos.current.x);
        const deltaY = Math.abs(currentY - startPos.current.y);
 
-       // Si el usuario mueve el dedo en vertical (Scroll) abortamos la rotación del cilindro
+       // Si el movimiento es más vertical que horizontal, bloqueamos la rotación
+       // para permitir que el scroll de la página fluya.
        if (deltaY > deltaX && deltaY > 10) {
            isVerticalScroll.current = true;
            return;
@@ -191,7 +191,6 @@ export default function ServiceCylinder() {
 
    return (
        <group>
-           {/* PARTÍCULAS AISLADAS */}
            <Sparkles 
                count={300} 
                scale={[RADIUS * 2, 15, RADIUS * 2]} 
@@ -201,7 +200,6 @@ export default function ServiceCylinder() {
                color="#ffffff" 
            />
 
-           {/* GRUPO INTERACTIVO DE BANNERS */}
            <group
                onPointerDown={handlePointerDown}
                onPointerUp={handlePointerUp}
