@@ -1,23 +1,22 @@
 'use client';
-import React, { useRef, useState, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, Environment, ContactShadows } from '@react-three/drei';
+import React, { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Float, ContactShadows, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 function LuxuryGeometry() {
     const groupRef = useRef<THREE.Group>(null);
-    const { size } = useThree();
     
-    // Referencias para la física manual
+    // Referencias para la física manual (¡Intactas!)
     const isDragging = useRef(false);
     const previousMouse = useRef({ x: 0, y: 0 });
     const velocity = useRef({ x: 0, y: 0 });
     const rotation = useRef({ x: 0, y: 0 });
 
-    // Capturamos eventos directamente en el canvas para máxima precisión
     const onPointerDown = (e: any) => {
+        // e.nativeEvent nos da las coordenadas reales del ratón/dedo en la pantalla
         isDragging.current = true;
-        previousMouse.current = { x: e.clientX, y: e.clientY };
+        previousMouse.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY };
     };
 
     const onPointerUp = () => {
@@ -27,11 +26,9 @@ function LuxuryGeometry() {
     const onPointerMove = (e: any) => {
         if (!isDragging.current) return;
 
-        // Calculamos cuánto se ha movido el dedo/ratón
         const deltaX = e.clientX - previousMouse.current.x;
         const deltaY = e.clientY - previousMouse.current.y;
 
-        // Sensibilidad: Ajustamos según el tamaño de la pantalla
         const sensitivity = 0.005;
         velocity.current.y = deltaX * sensitivity;
         velocity.current.x = deltaY * sensitivity;
@@ -39,7 +36,6 @@ function LuxuryGeometry() {
         previousMouse.current = { x: e.clientX, y: e.clientY };
     };
 
-    // Adjuntamos los eventos al window para que no se corte el arrastre al salir del widget
     React.useEffect(() => {
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointermove', onPointerMove);
@@ -52,24 +48,21 @@ function LuxuryGeometry() {
     useFrame((state) => {
         if (!groupRef.current) return;
 
-        // Aplicamos la velocidad a la rotación actual
         rotation.current.y += velocity.current.y;
         rotation.current.x += velocity.current.x;
 
-        // Fricción: La velocidad decae lentamente para dar fluidez (Inercia)
         velocity.current.y *= 0.95;
         velocity.current.x *= 0.95;
 
-        // Rotación automática base (muy sutil)
         const t = state.clock.getElapsedTime();
         const autoRotate = Math.sin(t * 0.2) * 0.001;
 
-        // Aplicamos al objeto
         groupRef.current.rotation.y = rotation.current.y + autoRotate;
         groupRef.current.rotation.x = THREE.MathUtils.clamp(rotation.current.x, -Math.PI / 3, Math.PI / 3);
     });
 
     return (
+        // Añadimos el evento onPointerDown al grupo para capturar el click en el entorno 3D
         <group ref={groupRef} onPointerDown={onPointerDown}>
             <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
                 {/* NÚCLEO: Oro */}
@@ -106,26 +99,28 @@ export default function EventsWidget({ isActive }: { isActive: boolean }) {
     if (!isActive) return null;
 
     return (
-        <div className="relative w-full h-[350px] mb-12 border border-black/5 rounded-xl overflow-hidden cursor-grab active:cursor-grabbing shadow-inner">
-            <div 
-                className="absolute inset-0 z-0" 
-                style={{ background: 'radial-gradient(circle at 50% 0%, #ffffff 0%, #FAF9F6 70%, #e8e5df 100%)' }} 
-            />
+        <group>
+            {/* CAPA 1: EL FONDO HTML (Detrás de la geometría) */}
+            <Html transform center distanceFactor={12} position={[0, 0, -0.5]}>
+                <div className="relative w-[500px] h-[350px] border border-black/5 rounded-xl overflow-hidden cursor-grab active:cursor-grabbing shadow-inner pointer-events-none">
+                    <div 
+                        className="absolute inset-0 z-0" 
+                        style={{ background: 'radial-gradient(circle at 50% 0%, #ffffff 0%, #FAF9F6 70%, #e8e5df 100%)' }} 
+                    />
+                    <div className="absolute bottom-4 w-full text-center text-[8px] tracking-[4px] text-black/40 uppercase font-mono z-20">
+                        Swipe to rotate // Gold Standard
+                    </div>
+                </div>
+            </Html>
 
-            <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 0, 4.5], fov: 45 }} className="z-10">
-                <ambientLight intensity={0.7} />
-                <pointLight position={[10, 10, 10]} intensity={1.5} />
-                <Environment preset="city" />
-
-                <Suspense fallback={null}>
-                    <LuxuryGeometry />
-                    <ContactShadows position={[0, -1.5, 0]} opacity={0.2} scale={10} blur={3} />
-                </Suspense>
-            </Canvas>
-
-            <div className="absolute bottom-4 w-full text-center text-[7px] tracking-[4px] text-black/20 uppercase font-mono pointer-events-none z-20">
-                Swipe to rotate // Gold Standard
-            </div>
-        </div>
+            {/* CAPA 2: LUCES Y 3D (Flotan sobre el fondo perla) */}
+            {/* Solo dejamos la luz puntual. El ambiente ya lo provee el SceneManager. */}
+            <pointLight position={[10, 10, 10]} intensity={1.5} />
+            
+            <LuxuryGeometry />
+            
+            {/* Sombra proyectada en el fondo para dar más volumen */}
+            <ContactShadows position={[0, -1.5, 0.1]} opacity={0.3} scale={10} blur={3} color="#000000" />
+        </group>
     );
 }
