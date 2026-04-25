@@ -1,92 +1,82 @@
 'use client';
-import React, { useRef } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Float, ContactShadows, Html } from '@react-three/drei';
+import { Float, ContactShadows, Html, Edges } from '@react-three/drei';
 import * as THREE from 'three';
 
-function LuxuryGeometry() {
+// --- 1. GEOMETRÍA DE LUJO (Aumentada a escala Hero) ---
+function LuxuryGeometry({ visible }: { visible: boolean }) {
     const groupRef = useRef<THREE.Group>(null);
     
-    // Referencias para la física manual (¡Intactas!)
+    // Física manual para rotar la joya con el dedo
     const isDragging = useRef(false);
     const previousMouse = useRef({ x: 0, y: 0 });
     const velocity = useRef({ x: 0, y: 0 });
     const rotation = useRef({ x: 0, y: 0 });
 
     const onPointerDown = (e: any) => {
-        // e.nativeEvent nos da las coordenadas reales del ratón/dedo en la pantalla
         isDragging.current = true;
-        previousMouse.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY };
-    };
-
-    const onPointerUp = () => {
-        isDragging.current = false;
-    };
-
-    const onPointerMove = (e: any) => {
-        if (!isDragging.current) return;
-
-        const deltaX = e.clientX - previousMouse.current.x;
-        const deltaY = e.clientY - previousMouse.current.y;
-
-        const sensitivity = 0.005;
-        velocity.current.y = deltaX * sensitivity;
-        velocity.current.x = deltaY * sensitivity;
-
         previousMouse.current = { x: e.clientX, y: e.clientY };
     };
 
-    React.useEffect(() => {
+    const onPointerUp = () => { isDragging.current = false; };
+
+    const onPointerMove = (e: any) => {
+        if (!isDragging.current || !visible) return;
+        const deltaX = e.clientX - previousMouse.current.x;
+        const deltaY = e.clientY - previousMouse.current.y;
+        velocity.current.y = deltaX * 0.005;
+        velocity.current.x = deltaY * 0.005;
+        previousMouse.current = { x: e.clientX, y: e.clientY };
+    };
+
+    useEffect(() => {
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointermove', onPointerMove);
         return () => {
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointermove', onPointerMove);
         };
-    }, []);
+    }, [visible]);
 
     useFrame((state) => {
-        if (!groupRef.current) return;
+        if (!groupRef.current || !visible) return;
 
         rotation.current.y += velocity.current.y;
         rotation.current.x += velocity.current.x;
-
         velocity.current.y *= 0.95;
         velocity.current.x *= 0.95;
 
         const t = state.clock.getElapsedTime();
-        const autoRotate = Math.sin(t * 0.2) * 0.001;
-
-        groupRef.current.rotation.y = rotation.current.y + autoRotate;
+        groupRef.current.rotation.y = rotation.current.y + Math.sin(t * 0.2) * 0.1;
         groupRef.current.rotation.x = THREE.MathUtils.clamp(rotation.current.x, -Math.PI / 3, Math.PI / 3);
     });
 
     return (
-        // Añadimos el evento onPointerDown al grupo para capturar el click en el entorno 3D
-        <group ref={groupRef} onPointerDown={onPointerDown}>
-            <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.5}>
-                {/* NÚCLEO: Oro */}
-                <mesh scale={0.65}>
+        <group ref={groupRef} onPointerDown={onPointerDown} visible={visible}>
+            <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
+                {/* NÚCLEO: Oro (Más grande) */}
+                <mesh scale={1.2}>
                     <icosahedronGeometry args={[1, 0]} />
                     <meshStandardMaterial color="#c5a059" metalness={1} roughness={0.1} />
                 </mesh>
                 
-                {/* CORAZA: Cristal */}
-                <mesh scale={1.1}>
+                {/* CORAZA: Cristal Refractor */}
+                <mesh scale={1.8}>
                     <icosahedronGeometry args={[1, 1]} />
                     <meshPhysicalMaterial 
                         transmission={1}
-                        roughness={0.02}
-                        thickness={1.5}
+                        roughness={0.01}
+                        thickness={2}
                         ior={1.5}
-                        clearcoat={1}
-                        clearcoatRoughness={0.02}
                         color="#ffffff"
+                        attenuationColor="#ffffff"
+                        attenuationDistance={0.5}
                     />
                 </mesh>
 
                 {/* ESTRUCTURA: Oro Wireframe */}
-                <mesh scale={1.102}>
+                <mesh scale={1.81}>
                     <icosahedronGeometry args={[1, 1]} />
                     <meshStandardMaterial color="#c5a059" metalness={1} roughness={0.1} wireframe />
                 </mesh>
@@ -95,32 +85,55 @@ function LuxuryGeometry() {
     );
 }
 
+// --- 2. PANEL PRINCIPAL ---
 export default function EventsWidget({ isActive }: { isActive: boolean }) {
-    if (!isActive) return null;
+    
+    // --- REGLA DE ORO: NUNCA DEVOLVER NULL ---
 
     return (
         <group>
-            {/* CAPA 1: EL FONDO HTML (Detrás de la geometría) */}
-            <Html transform center distanceFactor={12} position={[0, 0, -0.5]}>
-                <div className="relative w-[500px] h-[350px] border border-black/5 rounded-xl overflow-hidden cursor-grab active:cursor-grabbing shadow-inner pointer-events-none">
+            {/* CAPA 1: FONDO HTML (Elegancia Perla) */}
+            <Html 
+                transform 
+                center 
+                distanceFactor={8} // 🚀 Escala Hero
+                position={[0, 0, -0.2]}
+                style={{
+                    opacity: isActive ? 1 : 0,
+                    pointerEvents: isActive ? 'auto' : 'none',
+                    transition: 'opacity 0.6s ease-in-out',
+                }}
+            >
+                <div className="relative w-[800px] h-[500px] border border-black/5 rounded-2xl overflow-hidden shadow-2xl">
                     <div 
                         className="absolute inset-0 z-0" 
-                        style={{ background: 'radial-gradient(circle at 50% 0%, #ffffff 0%, #FAF9F6 70%, #e8e5df 100%)' }} 
+                        style={{ background: 'radial-gradient(circle at 50% 0%, #ffffff 0%, #FAF9F6 50%, #d1cfc8 100%)' }} 
                     />
-                    <div className="absolute bottom-4 w-full text-center text-[8px] tracking-[4px] text-black/40 uppercase font-mono z-20">
-                        Swipe to rotate // Gold Standard
+                    
+                    {/* Detalles de diseño Luxury */}
+                    <div className="absolute top-10 left-10 z-20">
+                        <h2 className="text-5xl font-light tracking-[15px] text-stone-800 uppercase">Events</h2>
+                        <div className="h-[1px] w-40 bg-stone-400 mt-4" />
+                    </div>
+
+                    <div className="absolute bottom-10 w-full text-center text-[10px] tracking-[6px] text-stone-500 uppercase font-mono z-20">
+                        Physical & Luxury Experiences // Gold Standard
                     </div>
                 </div>
             </Html>
 
-            {/* CAPA 2: LUCES Y 3D (Flotan sobre el fondo perla) */}
-            {/* Solo dejamos la luz puntual. El ambiente ya lo provee el SceneManager. */}
-            <pointLight position={[10, 10, 10]} intensity={1.5} />
+            {/* CAPA 2: ELEMENTOS 3D */}
+            <pointLight position={[5, 5, 5]} intensity={isActive ? 2 : 0} color="#ffffff" />
             
-            <LuxuryGeometry />
+            <LuxuryGeometry visible={isActive} />
             
-            {/* Sombra proyectada en el fondo para dar más volumen */}
-            <ContactShadows position={[0, -1.5, 0.1]} opacity={0.3} scale={10} blur={3} color="#000000" />
+            <ContactShadows 
+                position={[0, -4, 0]} 
+                opacity={isActive ? 0.4 : 0} 
+                scale={15} 
+                blur={2.5} 
+                color="#c5a059" 
+            />
         </group>
     );
 }
