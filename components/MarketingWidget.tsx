@@ -5,11 +5,10 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 export default function MarketingWidget({ isActive }: { isActive: boolean }) {
-    const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
     const [dataStream, setDataStream] = useState<string>('0x000000');
     const [metrics, setMetrics] = useState({ a: 84, b: 92, c: 99 });
 
-    // 1. Generador de datos (Tu lógica original mantenida)
+    // 1. Generador de datos (Tu lógica original)
     useEffect(() => {
         if (!isActive) return;
         const interval = setInterval(() => {
@@ -23,120 +22,107 @@ export default function MarketingWidget({ isActive }: { isActive: boolean }) {
         return () => clearInterval(interval);
     }, [isActive]);
 
-    // 2. Fondo de cuadrícula táctica (Generado como textura para rendimiento)
-    const gridTexture = useMemo(() => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 512; canvas.height = 512;
-        const ctx = canvas.getContext('2d')!;
-        ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
-        ctx.lineWidth = 1;
-        // Dibujar rejilla
-        for (let i = 0; i <= 512; i += 32) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
-        }
-        return new THREE.CanvasTexture(canvas);
-    }, []);
-
     return (
         <group>
-            {/* CAPA 1: FONDO DE PANTALLA (Negro absoluto con rejilla) */}
-            <mesh position={[0, 0, -0.05]}>
+            {/* 💡 LUZ LOCAL POTENCIADA: Para que el panel no sea un agujero negro */}
+            <pointLight position={[0, 0, 5]} intensity={isActive ? 30 : 0} color="#00ffff" />
+            <ambientLight intensity={isActive ? 0.5 : 0} />
+
+            {/* CAPA 1: FONDO TÉCNICO (Material con luz propia) */}
+            <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
-                <meshBasicMaterial 
-                    color="#020202"
-                    map={gridTexture}
-                    transparent
-                    opacity={isActive ? 1 : 0.3}
+                <meshStandardMaterial 
+                    color="#000810" 
+                    emissive="#001a2c" // Luz azul muy sutil de fondo
+                    emissiveIntensity={isActive ? 1 : 0}
+                    roughness={0.3}
+                    metalness={0.8}
                 />
             </mesh>
 
-            {/* CAPA 2: INTERFAZ HUD (HTML Transformado) */}
+            {/* CAPA 2: INTERFAZ HUD (Adelantada a Z=0.5 para Safari) */}
             <Html
                 transform
                 center
                 distanceFactor={8.2}
                 occlude={false}
-                position={[0, 0, 0.1]} // Un poco adelantado para efecto cristal
+                position={[0, 0, 0.5]} // 🚀 Adelantado para evitar el panel negro
                 style={{
                     width: '800px',
                     height: '500px',
                     pointerEvents: 'none',
                     opacity: isActive ? 1 : 0,
-                    transition: 'all 0.6s ease',
+                    transition: 'opacity 0.6s ease-in-out',
                 }}
             >
                 <div 
-                    className="relative w-full h-full font-mono text-cyan-400 select-none overflow-hidden border border-cyan-500/20 rounded-lg"
-                    style={{ background: 'rgba(0, 10, 20, 0.4)' }}
+                    className="relative w-full h-full font-mono text-cyan-400 select-none flex flex-col justify-between p-10 border-2 border-cyan-500/30 rounded-xl"
+                    style={{ 
+                        background: 'rgba(2, 10, 20, 0.9)', // Fondo casi opaco para forzar visibilidad
+                        boxShadow: 'inset 0 0 100px rgba(0, 255, 255, 0.1)'
+                    }}
                 >
-                    {/* Radar Central (Tu CSS original adaptado) */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-40">
-                        <div className="absolute w-[300px] h-[300px] border border-cyan-500/30 rounded-full border-dashed animate-[spin_15s_linear_infinite]" />
-                        <div className="absolute w-[200px] h-[200px] border border-cyan-500/50 rounded-full" />
+                    {/* Radar Central Mejorado */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+                        <div className="absolute w-[350px] h-[350px] border-2 border-cyan-500/20 rounded-full animate-[spin_20s_linear_infinite]" />
+                        <div className="absolute w-[250px] h-[250px] border border-cyan-500/40 rounded-full" />
                         <div 
-                            className="absolute w-[200px] h-[200px] rounded-full animate-[spin_4s_linear_infinite]" 
-                            style={{ background: 'conic-gradient(from 0deg, transparent 70%, rgba(0, 255, 255, 0.3) 100%)' }} 
+                            className="absolute w-[250px] h-[250px] rounded-full animate-[spin_5s_linear_infinite]" 
+                            style={{ background: 'conic-gradient(from 0deg, transparent 60%, rgba(0, 255, 255, 0.4) 100%)' }} 
                         />
-                        <div className="w-10 h-10 border border-cyan-400/50 flex items-center justify-center">
-                            <div className="w-1 h-1 bg-white rounded-full animate-ping" />
+                    </div>
+
+                    {/* SECCIÓN SUPERIOR: SYSTEM STATUS */}
+                    <div className="z-10 flex justify-between">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 bg-cyan-400 animate-ping" />
+                                <h2 className="text-3xl font-bold tracking-[6px]">MARKETING_AI</h2>
+                            </div>
+                            <div className="text-[11px] opacity-70 flex flex-col tracking-widest">
+                                <span>STATUS: ACTIVE_TARGETING</span>
+                                <span>STREAM: {dataStream}</span>
+                                <span className="text-white/40">NODE: V.O.I.D_SERVER_01</span>
+                            </div>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                            <div className="px-3 py-1 border border-cyan-500 text-[10px] bg-cyan-500/10">
+                                ENLACE COGNITIVO_ON
+                            </div>
                         </div>
                     </div>
 
-                    {/* HUD: DATOS SUPERIORES */}
-                    <div className="absolute top-0 w-full p-8 flex justify-between items-start">
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-cyan-500 animate-pulse" />
-                                <span className="text-xl font-bold tracking-[4px]">MARKETING.OS</span>
-                            </div>
-                            <span className="text-[10px] opacity-60 uppercase tracking-[2px]">Algorithm: Neural_Aura_v2.4</span>
-                            <span className="text-[10px] opacity-60">HASH: {dataStream}</span>
-                        </div>
-                        <div className="text-right">
-                            <span className="text-xs block mb-1">SCANNING_MARKET...</span>
-                            <div className="w-32 h-1 bg-cyan-900 overflow-hidden">
-                                <div className="h-full bg-cyan-400 animate-[loading_2s_ease-in-out_infinite]" style={{ width: '40%' }} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* HUD: MÉTRICAS INFERIORES */}
-                    <div className="absolute bottom-0 w-full p-8 flex justify-between items-end bg-gradient-to-t from-cyan-950/40 to-transparent">
-                        <div className="flex gap-8">
+                    {/* SECCIÓN INFERIOR: MÉTRICAS DATA */}
+                    <div className="z-10 flex justify-between items-end border-t border-cyan-500/20 pt-8">
+                        <div className="flex gap-12">
                             <div className="flex flex-col">
-                                <span className="text-[9px] opacity-50 tracking-[3px]">CTR_OPTIMIZATION</span>
-                                <span className="text-2xl font-light">{metrics.a}%</span>
+                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">CTR_RT</span>
+                                <span className="text-4xl font-light text-white">{metrics.a}%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[9px] opacity-50 tracking-[3px]">CONVERSION_RT</span>
-                                <span className="text-2xl font-light">{metrics.b}%</span>
+                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">CONV_OPT</span>
+                                <span className="text-4xl font-light text-white">{metrics.b}%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[9px] opacity-50 tracking-[3px]">RETENTION_CORE</span>
-                                <span className="text-2xl font-light text-white">{metrics.c}%</span>
+                                <span className="text-[10px] opacity-40 uppercase tracking-[4px]">RET_SCORE</span>
+                                <span className="text-4xl font-bold text-cyan-400 shadow-cyan-500">{metrics.c}%</span>
                             </div>
                         </div>
                         
-                        <div className="flex flex-col items-end gap-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px]">SYNC_STATUS</span>
-                                <div className="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]" />
+                        <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2 text-green-400 text-[10px] font-bold">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                LIVE_FEED
                             </div>
-                            <span className="text-[8px] opacity-40 uppercase">Global_V.O.I.D_Network</span>
+                            <span className="text-[8px] opacity-30">© AURAVOID_MARKETING_UNIT</span>
                         </div>
                     </div>
 
-                    {/* Esquinas tácticas */}
-                    <div className="absolute top-4 left-4 w-8 h-8 border-t border-l border-cyan-500/50" />
-                    <div className="absolute top-4 right-4 w-8 h-8 border-t border-r border-cyan-500/50" />
-                    <div className="absolute bottom-4 left-4 w-8 h-8 border-b border-l border-cyan-500/50" />
-                    <div className="absolute bottom-4 right-4 w-8 h-8 border-b border-r border-cyan-500/50" />
+                    {/* Esquinas tácticas clásicas */}
+                    <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-cyan-500/40" />
+                    <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 border-cyan-500/40" />
                 </div>
             </Html>
-
-            {/* Efecto de resplandor cian ambiental en la rueda */}
-            <pointLight position={[0, 0, 2]} intensity={isActive ? 8 : 0} color="#00ffff" distance={10} />
         </group>
     );
 }
