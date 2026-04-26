@@ -1,28 +1,10 @@
 'use client';
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
-
 import AudiovisualWidget from './AudiovisualWidget';
-import MarketingWidget from './MarketingWidget';
-import IARobotTracker from './IARobotTracker';
-import BrandingWidget from './BrandingWidget';
-import EventsWidget from './EventsWidget';
 
-interface ServiceWheelProps {
-  wheelDataRef: React.MutableRefObject<{ rotation: number; activeIndex: number }>;
-}
-
-const WIDGETS_DATA = [
-  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' }, 
-  { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
-  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
-  { id: 'br', Component: BrandingWidget, color: '#ffff00' },
-  { id: 'ev', Component: EventsWidget, color: '#9932cc' }
-];
-
-export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps) {
+export default function ServiceWheelContent({ wheelDataRef }: any) {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
 
@@ -33,13 +15,11 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
    const faceAngle = (Math.PI * 2) / 5;
 
    const handlePointerDown = (e: any) => {
-       // 🛑 IMPORTANTE: Detenemos el evento para que el iPad no haga scroll
        e.stopPropagation();
+       // Forzamos al navegador a darnos el control total del dedo
        if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
-       
        isDragging.current = true;
        previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-       velocity.current = 0;
    };
 
    const handlePointerMove = (e: any) => {
@@ -47,7 +27,7 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        const deltaX = currentX - previousX.current;
        
-       velocity.current = deltaX * 0.007; 
+       velocity.current = deltaX * 0.01; // Más sensibilidad
        rotationRef.current += velocity.current;
        previousX.current = currentX;
    };
@@ -61,11 +41,10 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        if (!groupRef.current) return;
        
        if (!isDragging.current) {
-           velocity.current *= 0.94; // Fricción suave
+           velocity.current *= 0.9; // Fricción
            rotationRef.current += velocity.current;
-           
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.12);
+           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
        }
 
        let index = Math.round(-rotationRef.current / faceAngle) % 5;
@@ -76,7 +55,6 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
            wheelDataRef.current.rotation = rotationRef.current;
            wheelDataRef.current.activeIndex = index;
        }
-
        groupRef.current.rotation.y = rotationRef.current;
    });
 
@@ -86,28 +64,24 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
           onPointerCancel={handlePointerUp}
        >
-           {/* Escudo invisible para facilitar el drag en dispositivos táctiles */}
+           {/* CAPA DE CAPTURA: Una esfera invisible enorme para que el dedo siempre gire la rueda */}
            <mesh visible={false}>
-               <sphereGeometry args={[18, 20, 20]} />
+               <sphereGeometry args={[25, 16, 16]} />
            </mesh>
 
-           {WIDGETS_DATA.map((widget, i) => {
+           {[0, 1, 2, 3, 4].map((i) => {
                const angle = (i / 5) * Math.PI * 2;
-               const radius = 14; 
-               const isFront = i === activeIndex;
-
                return (
-                   <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
+                   <group key={i} position={[Math.sin(angle) * 15, 0, Math.cos(angle) * 15]} rotation={[0, angle, 0]}>
                        <mesh>
-                           <boxGeometry args={[24, 10, 0.4]} /> 
-                           <meshStandardMaterial color="#050505" metalness={1} roughness={0.4} />
-                           <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.1} />
+                           <boxGeometry args={[24, 10, 0.1]} />
+                           <meshBasicMaterial color="#050505" />
                        </mesh>
-                       <group position={[0, 0, 0.3]}>
-                           <widget.Component isActive={isFront} />
+                       <group position={[0, 0, 0.1]}>
+                           {i === 0 && <AudiovisualWidget isActive={i === activeIndex} />}
+                           {/* Resto de widgets irán aquí */}
                        </group>
                    </group>
                );
