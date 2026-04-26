@@ -1,51 +1,43 @@
 'use client';
-import React, { useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { useScroll } from '@react-three/drei';
+import React, { useRef, Suspense } from 'react';
 import * as THREE from 'three';
 
 import ServiceCylinder from './ServiceCylinder';
 import ServiceWheelContent from './ServiceWheelContent';
 
-function CameraRig() {
-  const scroll = useScroll();
-  const { viewport } = useThree();
-
-  useFrame((state) => {
-    const targetY = -(scroll.offset * (viewport.height * 1.5));
-    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.1);
-  });
-
-  return null;
-}
-
 export default function SceneManager() {
-  const { viewport } = useThree();
-
-  // 🧠 EL NUEVO CEREBRO (Súper rápido y no crashea nunca)
+  // 🧠 EL CEREBRO DE DATOS
   const wheelDataRef = useRef({ rotation: 0, activeIndex: 0 });
 
   return (
-    <group>
-      <ambientLight intensity={0.4} />
-      <pointLight position={[0, -viewport.height * 1.5, 20]} intensity={2} color="#00ffff" distance={50} />
-      
-      <CameraRig />
+    // 🛡️ EL ESCUDO: Si cualquier archivo hijo (textura, gltf) falla, 
+    // veremos un cubo rojo brillante gigante en lugar de borrar la pantalla.
+    <Suspense fallback={
+        <mesh>
+            <boxGeometry args={[4, 4, 4]} />
+            <meshBasicMaterial color="red" wireframe />
+        </mesh>
+    }>
+        <group>
+          {/* LUZ FUERTE PARA ASEGURARNOS DE QUE SE VE ALGO */}
+          <ambientLight intensity={1} />
+          <pointLight position={[0, 0, 20]} intensity={3} color="#ffffff" />
+          
+          {/* 🚀 EL REACTOR EN EL CENTRO ABSOLUTO (Sin offsets de Y) */}
+          <group position={[0, 0, 0]}>
+            
+            {/* EL CILINDRO (Justo en el centro, un poquito hacia atrás) */}
+            <group position={[0, 0, -2]}> 
+              <ServiceCylinder wheelDataRef={wheelDataRef} />
+            </group>
 
-      {/* REACTOR DE SERVICIOS */}
-      <group position={[0, -viewport.height * 1.5, 0]}>
-        
-        {/* EL CILINDRO. Lo subimos a 6.5 para que esté dentro de la rueda */}
-        <group position={[0, 6.5, -2]}> 
-          <ServiceCylinder wheelDataRef={wheelDataRef} />
+            {/* LA RUEDA (Justo en el centro) */}
+            <group position={[0, 0, 0]}>
+              <ServiceWheelContent wheelDataRef={wheelDataRef} />
+            </group>
+
+          </group>
         </group>
-
-        {/* LA RUEDA */}
-        <group position={[0, 0, 0]}>
-          <ServiceWheelContent wheelDataRef={wheelDataRef} />
-        </group>
-
-      </group>
-    </group>
+    </Suspense>
   );
 }
