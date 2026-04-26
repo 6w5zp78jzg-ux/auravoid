@@ -1,35 +1,37 @@
 'use client';
 import React, { useRef, Suspense } from 'react';
+import { useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 
 import ServiceCylinder from './ServiceCylinder';
 import ServiceWheelContent from './ServiceWheelContent';
 
 export default function SceneManager() {
-  // El Ref es vital para que no crashee
   const wheelDataRef = useRef({ rotation: 0, activeIndex: 0 });
 
   return (
-    <group>
-      {/* Luz básica que no puede fallar */}
-      <ambientLight intensity={2} />
-      <pointLight position={[10, 10, 10]} intensity={2} />
+    <Suspense fallback={null}>
+      <ambientLight intensity={1.2} />
+      <pointLight position={[0, 5, 20]} intensity={2.5} color="#00ffff" />
+      <pointLight position={[0, -5, 20]} intensity={1.5} color="#ffffff" />
 
-      {/* FORZAMOS TODO AL CENTRO [0,0,0] 
-          Si no los ves aquí, es que no se están renderizando 
-      */}
       <group position={[0, 0, 0]}>
-        
-        {/* Rueda arriba (Posición fija segura) */}
-        <group position={[0, 3, 0]}>
+        {/* 🎡 RUEDA SUPERIOR (Selector) - Más estilizada */}
+        <group position={[0, 5.5, 0]} scale={0.7}>
           <ServiceWheelContent wheelDataRef={wheelDataRef} />
         </group>
 
-        {/* Cilindro abajo (Posición fija segura) */}
-        <group position={[0, -5, 0]}>
+        {/* 🧪 CILINDRO INFERIOR (Información) - Bajado para dar aire */}
+        <group position={[0, -6, 0]} scale={0.7}>
           <ServiceCylinder wheelDataRef={wheelDataRef} />
         </group>
 
+        {/* EJE DE CONEXIÓN ULTRA FINO */}
+        <mesh position={[0, 0, -2]}>
+          <cylinderGeometry args={[0.01, 0.01, 35, 8]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.15} />
+        </mesh>
       </group>
-    </group>
+    </Suspense>
   );
 }
