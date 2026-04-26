@@ -5,13 +5,13 @@ import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
+// Importamos los widgets pero no los usamos todavía
 import AudiovisualWidget from './AudiovisualWidget';
 import MarketingWidget from './MarketingWidget';
 import IARobotTracker from './IARobotTracker';
 import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
-// 🚀 1. INTERFAZ ACTUALIZADA PARA ACEPTAR EL REF
 interface ServiceWheelProps {
   wheelDataRef?: React.MutableRefObject<{ rotation: number; activeIndex: number }>;
 }
@@ -24,7 +24,6 @@ const WIDGETS_DATA = [
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-// 🚀 2. EL COMPONENTE RECIBE LA REFERENCIA
 export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps) {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
@@ -70,7 +69,6 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        if (index < 0) index += 5;
        if (index !== activeIndex) setActiveIndex(index);
 
-       // 🚀 3. ESCRIBIMOS EN EL CEREBRO SILENCIOSAMENTE
        if (wheelDataRef) {
            wheelDataRef.current.rotation = rotationRef.current;
            wheelDataRef.current.activeIndex = index;
@@ -82,12 +80,11 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
    return (
        <group 
           ref={groupRef} 
-          position={[0, 0, 0]} // La altura ahora la dicta el SceneManager
+          position={[0, 0, 0]}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
        >
-           {/* Malla de impacto para gestos */}
            <mesh visible={false}>
                <cylinderGeometry args={[15, 15, 10, 16]} />
            </mesh>
@@ -100,17 +97,23 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
                return (
                    <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
                        
-                       {/* ESTRUCTURA FÍSICA SÓLIDA (Chasis) */}
                        <mesh>
                            <boxGeometry args={[16.5, 9.5, 0.4]} />
                            <meshStandardMaterial color="#050505" metalness={1} roughness={0.5} />
                            <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.2} />
                        </mesh>
 
-                       {/* EL WIDGET (Texturizado, Z-index 0.3) */}
                        <group position={[0, 0, 0.3]}>
-                           <widget.Component isActive={isFront} />
+                           {/* 🔥 PRUEBA DE FUEGO: APAGAMOS LOS WIDGETS 🔥 */}
+                           {/* <widget.Component isActive={isFront} /> */}
+                           
+                           {/* En su lugar ponemos un recuadro de color para verificar que la rueda gira */}
+                           <mesh>
+                               <planeGeometry args={[5, 5]} />
+                               <meshBasicMaterial color={widget.color} wireframe={true} />
+                           </mesh>
                        </group>
+
                    </group>
                );
            })}
