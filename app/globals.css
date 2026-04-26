@@ -76,3 +76,8 @@ canvas {
 .text-glow {
   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
+canvas {
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
