@@ -4,13 +4,15 @@ import { useFrame } from '@react-three/fiber';
 import { Edges, useScroll, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
+// 🌐 IMPORTACIONES DE ENTIDADES
 import AudiovisualWidget from './AudiovisualWidget';
 import MarketingWidget from './MarketingWidget';
 import IARobotTracker from './IARobotTracker';
 import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
-const SCAN_DATA: any = {
+// 📊 DATA ESTRATÉGICA (Refinada de la pizarra)
+const SCAN_DATA: Record<string, any> = {
   av: { 
     tag: "PRODUCCIÓN AUDIOVISUAL", 
     desc: "Elevamos la identidad de marca mediante narrativa visual de alto impacto y tecnología inmersiva.",
@@ -68,18 +70,16 @@ function AuraVoidHUD({ data, color, isFront }: { data: any, color: string, isFro
       distanceFactor={10}
       position={[0, 0, 0.55]} 
       portal={{ current: document.body }}
-      // LA CLAVE: pointer-events-none permite que el scroll pase al Canvas siempre
+      pointerEvents="none" // 🛡️ CRUCIAL: Permite que el scroll atraviese el HTML hacia el Canvas
       style={{
         width: '600px',
         height: '420px',
-        pointerEvents: 'none', 
         opacity: opacity,
+        pointerEvents: 'none', 
+        userSelect: 'none'
       }}
     >
-      {/* HUD CONTAINER CON CONTRASTE REFORZADO (bg-black mas denso y sombra interna) */}
       <div className="w-full h-full p-8 flex flex-col justify-between border border-white/20 bg-black/95 backdrop-blur-3xl font-mono text-white shadow-[0_0_100px_rgba(0,0,0,1)] relative overflow-hidden">
-        
-        {/* Viñeteado de contraste para asegurar legibilidad en colores claros como amarillo/rosa */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
 
         <div className="relative z-10 flex justify-between items-start border-b border-white/10 pb-4">
@@ -110,7 +110,6 @@ function AuraVoidHUD({ data, color, isFront }: { data: any, color: string, isFro
           <div className="text-[9px] opacity-30 tracking-[0.3em] uppercase rotate-90 origin-bottom-right translate-y-[-10px]">AURA.VOID</div>
         </div>
 
-        {/* Esquinas de alto contraste */}
         <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2" style={{ borderColor: color }} />
         <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2" style={{ borderColor: color }} />
       </div>
@@ -144,7 +143,6 @@ export default function ServiceWheelContent({ activeIndex, setActiveIndex }: any
 
   useFrame(() => {
     if (!groupRef.current) return;
-
     if (!isDragging.current) {
       velocity.current *= 0.94;
       rotationRef.current += velocity.current;
@@ -154,22 +152,19 @@ export default function ServiceWheelContent({ activeIndex, setActiveIndex }: any
       const lerpFactor = baseLerp + zoomEffect;
       rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, lerpFactor);
     }
-
     let index = Math.round(-rotationRef.current / faceAngle) % 5;
     if (index < 0) index += 5;
     if (index !== activeIndex) setActiveIndex(index);
-
     groupRef.current.rotation.y = rotationRef.current;
   });
 
   return (
     <group ref={groupRef} position={[0, 6.5, 0]}>
-      {/* Hitbox masiva para asegurar que el drag funcione incluso bajo el HUD */}
       <mesh visible={false} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}>
         <cylinderGeometry args={[20, 20, 15, 16]} />
       </mesh>
 
-      {WIDGETS_DATA.map((widget, i) => {
+      {WIDGETS_DATA.map((widget: any, i: number) => {
         const angle = (i / 5) * Math.PI * 2;
         const radius = 11.35;
         const isFront = i === activeIndex;
