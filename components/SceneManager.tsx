@@ -5,7 +5,7 @@ import { useScroll } from '@react-three/drei';
 import * as THREE from 'three';
 
 // 🌐 IMPORTACIÓN DEL NÚCLEO UNIFICADO (Ruta y nombre corregidos)
-import SystemCore from './SystemCore';
+import SystemCore from './ServiceWheelContent';
 
 // --- CONTROLADOR DE CÁMARA CINEMATOGRÁFICA ---
 function CameraRig() {
