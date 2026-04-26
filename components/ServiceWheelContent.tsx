@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, useScroll } from '@react-three/drei';
 import * as THREE from 'three';
@@ -18,22 +18,24 @@ const WIDGETS_DATA = [
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-export default function ServiceWheelContent() {
+// 🧠 Recibimos el estado desde SceneManager
+interface SystemCoreProps {
+  activeIndex: number;
+  setActiveIndex: (index: number) => void;
+}
+
+export default function ServiceWheelContent({ activeIndex, setActiveIndex }: SystemCoreProps) {
    const groupRef = useRef<THREE.Group>(null);
-   const [activeIndex, setActiveIndex] = useState(0);
-   
-   // Hook mágico de Drei para leer el progreso del scroll (0 a 1)
    const scroll = useScroll(); 
 
    const isDragging = useRef(false);
-   const isScrolling = useRef(false);
    const previousX = useRef(0);
    const rotationRef = useRef(0);
    const velocity = useRef(0);
    const faceAngle = (Math.PI * 2) / 5;
 
    const handlePointerDown = (e: any) => {
-       if (isScrolling.current) return; // Bloquea el toque si estamos en pleno zoomscroll
+       if (scroll.offset > 0.05) return; // Bloquea si ya empezamos a hacer zoom
        e.stopPropagation();
        if(e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
        isDragging.current = true;
@@ -41,7 +43,7 @@ export default function ServiceWheelContent() {
    };
 
    const handlePointerMove = (e: any) => {
-       if (!isDragging.current || isScrolling.current) return;
+       if (!isDragging.current || scroll.offset > 0.05) return;
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        const deltaX = currentX - previousX.current;
        velocity.current = deltaX * 0.005;
@@ -57,36 +59,38 @@ export default function ServiceWheelContent() {
    useFrame(() => {
        if (!groupRef.current) return;
 
-       // 1. EL VANGUARD UPGRADE: Control del ZoomScroll
-       // scroll.offset va de 0 (arriba) a 1 (abajo del todo)
-       const offset = scroll.offset; 
-       isScrolling.current = offset > 0.02; // Detectamos si el usuario empezó a bajar
+       // 1. CÁLCULO DE ZOOM BALÍSTICO
+       // Multiplicamos por 2 y limitamos a 1. Así el zoom termina al 50% del scroll.
+       const zoomProgress = Math.min(scroll.offset * 2, 1); 
 
-       // Efecto Zoom (Eje Z): Mueve la rueda hacia la cámara. 
-       // Tu cámara está en Z=45. Llevamos la rueda hasta Z=50 para que nos "atraviese".
-       const targetZ = THREE.MathUtils.lerp(0, 50, offset * 1.5); // *1.5 para acelerar la penetración
+       // Target Z: La cámara está en Z=28. El panel frontal está a Z=11.35 relativo a la rueda.
+       // Acercamos la rueda hasta Z=15. Así el panel queda en Z=26.35 (justo en la cara del usuario).
+       const targetZ = THREE.MathUtils.lerp(0, 15, zoomProgress);
+       
+       // Target Y: Llevamos la rueda a Y=0 para que el panel frontal quede exactamente en el centro
+       const targetY = THREE.MathUtils.lerp(6.5, 0, zoomProgress);
+
        groupRef.current.position.z = targetZ;
+       groupRef.current.position.y = targetY;
 
-       // Efecto Caída (Eje Y): Para que el usuario no choque contra el borde superior de la rueda
-       groupRef.current.position.y = THREE.MathUtils.lerp(6.5, -5, offset);
-
-       // Efecto Torbellino: Si está haciendo scroll, la rueda gira sola hacia el "Void"
-       if (isScrolling.current) {
-           rotationRef.current -= 0.02 * (offset * 5); 
-       }
-
-       // 2. Fricción y Snapping (Tu lógica original impecable)
-       if (!isDragging.current && !isScrolling.current) {
+       // 2. CONTROL DE ROTACIÓN Y SNAP PERFECTO
+       if (!isDragging.current) {
            velocity.current *= 0.95;
+           
+           // Si el usuario hace zoom, forzamos un frenado inmediato para evitar desvíos
+           if (scroll.offset > 0.05) velocity.current = 0; 
+
            rotationRef.current += velocity.current;
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
+           
+           // Interpolación dura hacia el snap si estamos en pleno zoom
+           const lerpSpeed = scroll.offset > 0.05 ? 0.2 : 0.1;
+           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, lerpSpeed);
 
+           // Detectamos y elevamos el estado activo
            let index = Math.round(-rotationRef.current / faceAngle) % 5;
            if (index < 0) index += 5;
            if (index !== activeIndex) setActiveIndex(index);
-       } else if (isScrolling.current) {
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, rotationRef.current, 0.1);
        }
        
        groupRef.current.rotation.y = rotationRef.current;
