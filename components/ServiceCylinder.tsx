@@ -1,36 +1,34 @@
 'use client';
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
-// --- SUBCOMPONENTE: CADA BANNER INDIVIDUAL ---
-function ServiceBanner({ title, index, total, rotationY, radius, heightStep, size, dragDistance }: {
-   title: string,
+// --- SUBCOMPONENTE: CRISTAL DE INFORMACIÓN ---
+function InfoBanner({ service, index, total, radius, size, isActive }: {
+   service: { titulo: string, desc: string, stats: string },
    index: number,
    total: number,
-   rotationY: number,
    radius: number,
-   heightStep: number,
    size: [number, number],
-   dragDistance: React.MutableRefObject<number>
+   isActive: boolean
 }) {
    const meshRef = useRef<THREE.Mesh>(null);
 
-   // Generación de la textura del banner (Cristal + Texto)
+   // Generación de la textura del banner (Cristal + Info Detallada)
    const texture = useMemo(() => {
        const c = document.createElement('canvas');
        const ctx = c.getContext('2d');
        if (!ctx) return null;
-       c.width = 1024; c.height = 350;
+       c.width = 1024; c.height = 512; // Más alto para caber la descripción
       
        const margin = 20;
        const pWidth = 1024 - (margin * 2);
-       const pHeight = 350 - (margin * 2);
+       const pHeight = 512 - (margin * 2);
       
-       // --- 1. FONDO DE CRISTAL ---
-       const rainbowGrad = ctx.createLinearGradient(margin, margin, 1024 - margin, 350 - margin);
+       // 1. FONDO DE CRISTAL (Tu diseño original)
+       const rainbowGrad = ctx.createLinearGradient(margin, margin, 1024 - margin, 512 - margin);
        rainbowGrad.addColorStop(0, 'rgba(255, 0, 0, 0.08)');   
        rainbowGrad.addColorStop(0.2, 'rgba(255, 255, 0, 0.08)');
        rainbowGrad.addColorStop(0.4, 'rgba(0, 255, 0, 0.08)');  
@@ -38,186 +36,163 @@ function ServiceBanner({ title, index, total, rotationY, radius, heightStep, siz
        rainbowGrad.addColorStop(0.8, 'rgba(0, 0, 255, 0.08)');  
        rainbowGrad.addColorStop(1, 'rgba(255, 0, 255, 0.08)');  
       
-       ctx.fillStyle = 'rgba(10, 10, 15, 0.4)';
+       ctx.fillStyle = 'rgba(10, 10, 15, 0.5)'; // Un poco más oscuro para leer mejor
        ctx.fillRect(margin, margin, pWidth, pHeight);
       
        ctx.fillStyle = rainbowGrad;
        ctx.fillRect(margin, margin, pWidth, pHeight);
       
-       const shine = ctx.createLinearGradient(margin, margin, margin, 350 - margin);
+       const shine = ctx.createLinearGradient(margin, margin, margin, 512 - margin);
        shine.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
        shine.addColorStop(0.5, 'transparent');
        shine.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
        ctx.fillStyle = shine;
        ctx.fillRect(margin, margin, pWidth, pHeight);
 
-       // --- 2. BORDE NEÓN ---
-       ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+       // 2. BORDE TÁCTICO
+       ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
        ctx.shadowBlur = 15;                         
-       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-       ctx.lineWidth = 1;                           
+       ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+       ctx.lineWidth = 2;                           
        ctx.strokeRect(margin, margin, pWidth, pHeight);
        ctx.shadowBlur = 0;
 
-       // --- 3. TEXTO ---
-       ctx.fillStyle = '#fff';
-       ctx.font = '500 62px "Montserrat", sans-serif';
+       // 3. TEXTOS MAESTRO-DETALLE
        ctx.textAlign = 'center';
-       ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-       ctx.shadowBlur = 10;
-       ctx.fillText(title, 512, 185);
+       
+       // Título
+       ctx.fillStyle = '#ffffff';
+       ctx.font = '800 45px "Montserrat", sans-serif';
+       ctx.fillText(service.titulo, 512, 120);
+
+       // Línea separadora
+       ctx.fillStyle = 'rgba(0, 255, 255, 0.5)';
+       ctx.fillRect(312, 160, 400, 2);
+
+       // Descripción (multilínea)
+       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+       ctx.font = '400 32px "Montserrat", sans-serif';
+       const lines = service.desc.split('\n');
+       lines.forEach((line, i) => {
+           ctx.fillText(line, 512, 240 + (i * 45));
+       });
+
+       // Estadística destacada
+       ctx.fillStyle = '#00ffff';
+       ctx.font = '700 45px "Montserrat", sans-serif';
+       ctx.fillText(service.stats, 512, 420);
       
        return new THREE.CanvasTexture(c);
-   }, [title]);
+   }, [service]);
 
-   useFrame(() => {
+   // Posicionamiento en Anillo (Dentro de la rueda)
+   useEffect(() => {
        if (!meshRef.current) return;
-       const angle = (index / total) * Math.PI * 2 + rotationY + Math.PI;
+       const angle = (index / total) * Math.PI * 2;
        meshRef.current.position.x = Math.sin(angle) * radius;
        meshRef.current.position.z = Math.cos(angle) * radius;
-      
-       const totalH = total * heightStep;
-       const vOff = (rotationY / (Math.PI * 2)) * totalH;
-       const iY = (index - 2) * heightStep;
-       let yPos = ((iY + vOff + totalH / 2) % totalH + totalH) % totalH - totalH / 2;
-      
-       meshRef.current.position.y = yPos;
-       meshRef.current.lookAt(0, yPos, 0);
+       meshRef.current.position.y = 0; // Lo mantenemos plano para que encaje en el centro
+       
+       // Orientar el panel hacia afuera
+       meshRef.current.lookAt(0, 0, 0);
        meshRef.current.rotateY(Math.PI);
-      
-       const wp = new THREE.Vector3();
-       meshRef.current.getWorldPosition(wp);
-       if (meshRef.current.material instanceof THREE.MeshBasicMaterial) {
-           meshRef.current.material.opacity = THREE.MathUtils.smoothstep(wp.z, -3, 8) * (1.0 - THREE.MathUtils.smoothstep(Math.abs(wp.y), 8, 12));
-       }
+   }, [index, total, radius]);
+
+   // Destacar el panel activo
+   useFrame(() => {
+       if (!meshRef.current) return;
+       const mat = meshRef.current.material as THREE.MeshBasicMaterial;
+       // Si es el activo, es 100% visible. Si no, se difumina a 0.15
+       const targetOpacity = isActive ? 1 : 0.15;
+       mat.opacity = THREE.MathUtils.lerp(mat.opacity, targetOpacity, 0.08);
    });
 
-   const handlePointerUp = () => {
-       if (dragDistance.current < 15) {
-           window.dispatchEvent(new CustomEvent('open-service', { detail: index }));
-       }
-   };
-
    return (
-       <mesh ref={meshRef} onPointerUp={handlePointerUp}>
+       <mesh ref={meshRef}>
            <planeGeometry args={size} />
            <meshBasicMaterial map={texture} transparent={true} side={THREE.DoubleSide} />
        </mesh>
    );
 }
 
-// --- COMPONENTE PRINCIPAL ---
-export default function ServiceCylinder() {
+// --- COMPONENTE PRINCIPAL (Receptor de datos) ---
+// Recibe wheelRotation (ángulo actual de la rueda) y activeIndex (índice del servicio seleccionado)
+export default function InformationCore({ wheelRotation, activeIndex }: { wheelRotation: number, activeIndex: number }) {
    const { language } = useLanguage();
    const { size } = useThree();
    const isMobile = size.width < 768;
-   const scaleFactor = isMobile ? 0.6 : 1.0;
-
-   const RADIUS = 5.5 * scaleFactor;
-   const HEIGHT_STEP = 5.5 * scaleFactor;
-   const BANNER_SIZE: [number, number] = [11 * scaleFactor, 3.8 * scaleFactor];
-  
-   const SERVICIOS = [
-       { titulo: language === 'es' ? "PRODUCCIÓN AUDIOVISUAL" : "AUDIOVISUAL PRODUCTION" },
-       { titulo: language === 'es' ? "MARKETING DE PRECISIÓN" : "PRECISION MARKETING" },
-       { titulo: language === 'es' ? "IA Y AUTOMATIZACIONES" : "AI & AUTOMATIONS" },
-       { titulo: language === 'es' ? "BRANDING Y PR" : "BRANDING & PR" },
-       { titulo: language === 'es' ? "FÍSICO Y EVENTOS" : "PHYSICAL & EVENTS" }
-   ];
-
-   const [rotationY, setRotationY] = useState(0);
-   const rotRef = useRef(0);
-   const velocity = useRef(0);
-   const isDragging = useRef(false);
    
-   // Referencias de control de gestos
-   const lastX = useRef(0);
-   const dragDistance = useRef(0);
-   const startPos = useRef({ x: 0, y: 0 });
-   const isVerticalScroll = useRef(false);
+   // Factor de escala: lo hacemos MÁS PEQUEÑO que tu rueda principal para que quepa dentro
+   const scaleFactor = isMobile ? 0.4 : 0.7; 
 
-   useFrame(() => {
-       if (!isDragging.current) {
-           velocity.current *= 0.95;
-           rotRef.current -= (0.0015 + velocity.current);
-       } else {
-           velocity.current *= 0.8;
+   const RADIUS = 4.5 * scaleFactor; // Radio interior
+   const BANNER_SIZE: [number, number] = [8 * scaleFactor, 4 * scaleFactor]; 
+  
+   // Datos Extendidos
+   const SERVICIOS_INFO = useMemo(() => [
+       { 
+           titulo: language === 'es' ? "PRODUCCIÓN AUDIOVISUAL" : "AUDIOVISUAL PRODUCTION",
+           desc: language === 'es' ? "Cinematografía de alto impacto.\nResolución 8K RAW y Drones FPV." : "High-impact cinematography.\n8K RAW resolution and FPV Drones.",
+           stats: "CINEMA STANDARD"
+       },
+       { 
+           titulo: language === 'es' ? "MARKETING DE PRECISIÓN" : "PRECISION MARKETING",
+           desc: language === 'es' ? "Adquisición de usuarios táctica.\nOptimización predictiva Data Driven." : "Tactical user acquisition.\nPredictive optimization Data Driven.",
+           stats: "MAX ROI"
+       },
+       { 
+           titulo: language === 'es' ? "IA Y AUTOMATIZACIONES" : "AI & AUTOMATIONS",
+           desc: language === 'es' ? "Agentes autónomos y LLMs.\nSistemas cognitivos para empresas." : "Autonomous agents and LLMs.\nCognitive systems for enterprise.",
+           stats: "NEURAL CORE"
+       },
+       { 
+           titulo: language === 'es' ? "BRANDING Y PR" : "BRANDING & PR",
+           desc: language === 'es' ? "Ingeniería de percepción visual.\nPosicionamiento de marca global." : "Visual perception engineering.\nGlobal brand positioning.",
+           stats: "TOP TIER"
+       },
+       { 
+           titulo: language === 'es' ? "FÍSICO Y EVENTOS" : "PHYSICAL & EVENTS",
+           desc: language === 'es' ? "Espacios efímeros y showrooms.\nExperiencias inmersivas de lujo." : "Ephemeral spaces & showrooms.\nLuxury immersive experiences.",
+           stats: "IMMERSIVE"
        }
-       setRotationY(rotRef.current);
+   ], [language]);
+
+   const coreRef = useRef<THREE.Group>(null);
+
+   // SINCRONIZACIÓN SUAVE CON LA RUEDA EXTERNA
+   useFrame(() => {
+       if (!coreRef.current) return;
+       // El núcleo sigue la rotación de la rueda, pero le aplicamos lerp 
+       // para que tenga un ligero "retraso elástico" orgánico
+       coreRef.current.rotation.y = THREE.MathUtils.lerp(
+           coreRef.current.rotation.y, 
+           wheelRotation, 
+           0.1
+       );
    });
 
-   const handlePointerDown = (e: any) => {
-       isDragging.current = true;
-       isVerticalScroll.current = false;
-       
-       const clientX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
-       const clientY = e.clientY || (e.touches && e.touches[0].clientY) || e.nativeEvent?.clientY || 0;
-       
-       startPos.current = { x: clientX, y: clientY };
-       lastX.current = clientX;
-       velocity.current = 0;
-       dragDistance.current = 0;
-   };
-
-   const handlePointerMove = (e: any) => {
-       if (!isDragging.current || isVerticalScroll.current) return;
-
-       const currentX = e.clientX || (e.touches && e.touches[0].clientX) || e.nativeEvent?.clientX || 0;
-       const currentY = e.clientY || (e.touches && e.touches[0].clientY) || e.nativeEvent?.clientY || 0;
-
-       const deltaX = Math.abs(currentX - startPos.current.x);
-       const deltaY = Math.abs(currentY - startPos.current.y);
-
-       // Si el movimiento es más vertical que horizontal, bloqueamos la rotación
-       // para permitir que el scroll de la página fluya.
-       if (deltaY > deltaX && deltaY > 10) {
-           isVerticalScroll.current = true;
-           return;
-       }
-
-       const pixelDelta = currentX - lastX.current;
-       dragDistance.current += Math.abs(pixelDelta);
-      
-       const delta = pixelDelta * 0.005;
-       velocity.current = delta;
-       rotRef.current += delta;
-       lastX.current = currentX;
-   };
-
-   const handlePointerUp = () => {
-       isDragging.current = false;
-       isVerticalScroll.current = false;
-   };
-
    return (
-       <group>
+       // Z = -1 para meterlo un poco hacia el fondo de la pantalla y dar profundidad
+       <group position={[0, 0, -1]}> 
            <Sparkles 
-               count={300} 
-               scale={[RADIUS * 2, 15, RADIUS * 2]} 
-               size={2.5 * scaleFactor} 
-               speed={0.2} 
-               opacity={0.35} 
-               color="#ffffff" 
+               count={100} 
+               scale={[RADIUS * 2, 8, RADIUS * 2]} 
+               size={2 * scaleFactor} 
+               speed={0.1} 
+               opacity={0.5} 
+               color="#00ffff" 
            />
 
-           <group
-               onPointerDown={handlePointerDown}
-               onPointerUp={handlePointerUp}
-               onPointerMove={handlePointerMove}
-               onPointerLeave={handlePointerUp}
-               onPointerCancel={handlePointerUp}
-           >
-               {SERVICIOS.map((s, i) => (
-                   <ServiceBanner
+           <group ref={coreRef}>
+               {SERVICIOS_INFO.map((s, i) => (
+                   <InfoBanner
                        key={`${s.titulo}-${i}`}
-                       title={s.titulo}
+                       service={s}
                        index={i}
-                       total={SERVICIOS.length}
-                       rotationY={rotationY}
+                       total={SERVICIOS_INFO.length}
                        radius={RADIUS}
-                       heightStep={HEIGHT_STEP}
                        size={BANNER_SIZE}
-                       dragDistance={dragDistance}
+                       isActive={activeIndex === i}
                    />
                ))}
            </group>
