@@ -10,21 +10,7 @@ interface WheelData {
   activeIndex: number;
 }
 
-function InfoBanner({ 
-   service, 
-   index, 
-   total, 
-   radius, 
-   size, 
-   wheelDataRef 
-}: {
-   service: { titulo: string, desc: string, stats: string },
-   index: number,
-   total: number,
-   radius: number,
-   size: [number, number],
-   wheelDataRef?: React.MutableRefObject<WheelData>
-}) {
+function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) {
    const meshRef = useRef<THREE.Mesh>(null);
 
    const texture = useMemo(() => {
@@ -33,30 +19,40 @@ function InfoBanner({
        if (!ctx) return null;
        c.width = 1024; c.height = 512;
       
-       const margin = 20;
+       const margin = 30;
        const pWidth = 1024 - (margin * 2);
        const pHeight = 512 - (margin * 2);
       
-       ctx.fillStyle = 'rgba(10, 10, 15, 0.8)'; 
+       // Estética Cristal Aura Void
+       ctx.fillStyle = 'rgba(10, 10, 15, 0.85)'; 
        ctx.fillRect(margin, margin, pWidth, pHeight);
 
+       ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
+       ctx.lineWidth = 4;
+       ctx.strokeRect(margin, margin, pWidth, pHeight);
+
        ctx.textAlign = 'center';
-       ctx.fillStyle = '#ffffff';
-       ctx.font = '800 45px "Montserrat", sans-serif';
+       // Título Principal
+       ctx.fillStyle = '#00ffff';
+       ctx.font = 'bold 50px Montserrat, sans-serif';
        ctx.fillText(service.titulo, 512, 120);
 
-       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-       ctx.font = '400 32px "Montserrat", sans-serif';
+       // Separador
+       ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+       ctx.fillRect(362, 160, 300, 3);
+
+       // Descripción con tipado corregido
+       ctx.fillStyle = '#ffffff';
+       ctx.font = '34px Montserrat, sans-serif';
        const lines = service.desc.split('\n');
-       
-       // 🚀 SOLUCIÓN AL ERROR: Tipado explícito (line: string, i: number)
        lines.forEach((line: string, i: number) => {
-           ctx.fillText(line, 512, 240 + (i * 45));
+           ctx.fillText(line, 512, 260 + (i * 50));
        });
 
-       ctx.fillStyle = '#00ffff';
-       ctx.font = '700 45px "Montserrat", sans-serif';
-       ctx.fillText(service.stats, 512, 420);
+       // Tag inferior
+       ctx.fillStyle = 'rgba(0, 255, 255, 0.7)';
+       ctx.font = 'bold 40px Montserrat, sans-serif';
+       ctx.fillText(service.stats, 512, 440);
       
        return new THREE.CanvasTexture(c);
    }, [service]);
@@ -73,7 +69,7 @@ function InfoBanner({
        if (!meshRef.current || !wheelDataRef?.current) return;
        const isActive = wheelDataRef.current.activeIndex === index;
        const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-       mat.opacity = THREE.MathUtils.lerp(mat.opacity, isActive ? 1 : 0.1, 0.1);
+       mat.opacity = THREE.MathUtils.lerp(mat.opacity, isActive ? 1 : 0.05, 0.1);
    });
 
    return (
@@ -88,14 +84,18 @@ export default function ServiceCylinder({ wheelDataRef }: { wheelDataRef: React.
    const { language } = useLanguage();
    const { size: screen } = useThree();
    const isMobile = screen.width < 768;
-   const scale = isMobile ? 0.5 : 0.8;
-
+   
+   // 📏 AJUSTE DE TAMAÑO IMPACTANTE
+   const scaleFactor = isMobile ? 0.7 : 1.1; 
+   const RADIUS = 11.5 * scaleFactor; 
+   const BANNER_SIZE: [number, number] = [15 * scaleFactor, 7.5 * scaleFactor];
+  
    const SERVICIOS_INFO = useMemo(() => [
-       { titulo: language === 'es' ? "AUDIOVISUAL" : "AUDIOVISUAL", desc: "Producción cinematográfica 8K.\nNarrativas inmersivas.", stats: "PREMIUM CONTENT" },
-       { titulo: language === 'es' ? "MARKETING" : "MARKETING", desc: "Estrategias de precisión.\nGrowth hacking táctico.", stats: "HIGH ROI" },
-       { titulo: language === 'es' ? "I.A." : "A.I.", desc: "Agentes autónomos personalizados.\nAutomatización cognitiva.", stats: "NEURAL CORE" },
-       { titulo: language === 'es' ? "BRANDING" : "BRANDING", desc: "Identidad visual de alto nivel.\nPosicionamiento global.", stats: "BRAND EQUITY" },
-       { titulo: language === 'es' ? "EVENTOS" : "EVENTS", desc: "Experiencias físicas de lujo.\nShowrooms tecnológicos.", stats: "LIVE IMPACT" }
+       { titulo: language === 'es' ? "PRODUCCIÓN AUDIOVISUAL" : "AUDIOVISUAL PRODUCTION", desc: "Contenido cinematográfico de alto impacto.\nResolución 8K y drones tácticos.", stats: "PREMIUM STUDIO" },
+       { titulo: language === 'es' ? "MARKETING DE PRECISIÓN" : "PRECISION MARKETING", desc: "Estrategias de adquisición de usuarios.\nOptimización predictiva mediante datos.", stats: "MAXIMUM ROI" },
+       { titulo: language === 'es' ? "IA Y AUTOMATIZACIÓN" : "AI & AUTOMATION", desc: "Agentes inteligentes y redes neuronales.\nSistemas autónomos para empresas.", stats: "NEURAL CORE" },
+       { titulo: language === 'es' ? "BRANDING Y PR" : "BRANDING & PR", desc: "Arquitectura de marca e ingeniería visual.\nPosicionamiento en mercados de lujo.", stats: "TOP TIER" },
+       { titulo: language === 'es' ? "FÍSICO Y EVENTOS" : "PHYSICAL & EVENTS", desc: "Experiencias inmersivas y showrooms.\nDiseño de espacios efímeros de lujo.", stats: "LIVE IMPACT" }
    ], [language]);
 
    const coreRef = useRef<THREE.Group>(null);
@@ -108,10 +108,10 @@ export default function ServiceCylinder({ wheelDataRef }: { wheelDataRef: React.
 
    return (
        <group>
-           <Sparkles count={50} scale={[6, 6, 6]} size={3} speed={0.2} color="#00ffff" />
+           <Sparkles count={150} scale={[20, 10, 20]} size={3} speed={0.2} color="#00ffff" />
            <group ref={coreRef}>
                {SERVICIOS_INFO.map((s, i) => (
-                   <InfoBanner key={i} service={s} index={i} total={5} radius={5 * scale} size={[9 * scale, 5 * scale]} wheelDataRef={wheelDataRef} />
+                   <InfoBanner key={i} service={s} index={i} total={5} radius={RADIUS} size={BANNER_SIZE} wheelDataRef={wheelDataRef} />
                ))}
            </group>
        </group>
