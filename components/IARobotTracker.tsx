@@ -4,32 +4,29 @@ import { useFrame } from '@react-three/fiber';
 import { useGLTF, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- 1. TÚNEL DE DATOS INFINITO (Hacia el fondo) ---
+// --- 1. TÚNEL DE DATOS INFINITO ---
 function CyberTunnel({ isActive }: { isActive: boolean }) {
     const pointsRef = useRef<THREE.Points>(null);
     const count = 2000;
     
-    // Dimensiones estrictas del marco 16.5 x 9.5
-    const LIMIT_X = 8.15; // Un margen pequeño de seguridad
+    const LIMIT_X = 8.15;
     const LIMIT_Y = 4.65;
-    const START_Z = 2;    // Cerca de la cámara
-    const END_Z = -15;    // Fondo del túnel
-    const ROBOT_SAFE_ZONE = 3.2; // Radio donde no entran partículas
+    const START_Z = 2;
+    const END_Z = -15;
+    const ROBOT_SAFE_ZONE = 3.2;
 
-    // Inicializamos posiciones distribuidas en todo el túnel para evitar el efecto "pulso"
     const [positions, speeds] = useMemo(() => {
         const p = new Float32Array(count * 3);
         const s = new Float32Array(count);
         for (let i = 0; i < count; i++) {
-            spawnParticle(p, i, true); // true para que se distribuyan en Z al inicio
-            s[i] = 4 + Math.random() * 6; // Velocidad constante
+            spawnParticle(p, i, true); 
+            s[i] = 4 + Math.random() * 6; 
         }
         return [p, s];
     }, []);
 
     function spawnParticle(arr: Float32Array, i: number, randomZ = false) {
         let x, y, dist;
-        // Solo spawneamos fuera del radio del robot para que nunca lo atraviesen
         do {
             x = (Math.random() - 0.5) * (LIMIT_X * 2);
             y = (Math.random() - 0.5) * (LIMIT_Y * 2);
@@ -38,7 +35,6 @@ function CyberTunnel({ isActive }: { isActive: boolean }) {
 
         arr[i * 3 + 0] = x;
         arr[i * 3 + 1] = y;
-        // Si es el inicio, las repartimos. Si es un reset, nacen en el frente.
         arr[i * 3 + 2] = randomZ ? (Math.random() * (START_Z - END_Z) + END_Z) : START_Z;
     }
 
@@ -47,15 +43,9 @@ function CyberTunnel({ isActive }: { isActive: boolean }) {
         const attr = pointsRef.current.geometry.getAttribute('position') as THREE.BufferAttribute;
 
         for (let i = 0; i < count; i++) {
-            let x = attr.getX(i);
-            let y = attr.getY(i);
             let z = attr.getZ(i);
-
-            // 🚀 MOVIMIENTO CONSTANTE HACIA EL FONDO (Alejándose de la cámara)
             z -= speeds[i] * delta;
 
-            // COMPROBACIÓN ESTRICTA:
-            // Si llega al fondo o si por alguna razón la perspectiva la saca del marco
             if (z < END_Z) {
                 spawnParticle(attr.array as Float32Array, i, false);
             } else {
@@ -66,12 +56,13 @@ function CyberTunnel({ isActive }: { isActive: boolean }) {
     });
 
     return (
-        <points ref={pointsRef}>
+        // 🚀 CORTAFUEGOS DE GPU: Si no está activo, la tarjeta gráfica ignora las 2000 partículas
+        <points ref={pointsRef} visible={isActive}>
             <bufferGeometry>
                 <bufferAttribute attach="attributes-position" args={[positions, 3]} />
             </bufferGeometry>
             <pointsMaterial 
-                size={0.18} // Grosor 3x
+                size={0.18} 
                 color="#00ffff" 
                 transparent 
                 opacity={isActive ? 0.8 : 0} 
@@ -83,7 +74,7 @@ function CyberTunnel({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 2. MODELO ROBOT (Centrado absoluto) ---
+// --- 2. MODELO ROBOT ---
 function RobotModel({ isActive }: { isActive: boolean }) {
     const { scene } = useGLTF('/robot_optimus.glb');
     const groupRef = useRef<THREE.Group>(null);
@@ -96,7 +87,8 @@ function RobotModel({ isActive }: { isActive: boolean }) {
     });
 
     return (
-        <group ref={groupRef} position={[0, -1.8, 0]}>
+        // 🚀 CORTAFUEGOS DE GPU: Ocultar el grupo del robot elimina miles de polígonos de la memoria de render
+        <group ref={groupRef} position={[0, -1.8, 0]} visible={isActive}>
             <primitive object={scene} scale={3.8} />
         </group>
     );
@@ -126,7 +118,8 @@ function CyberHalo({ isActive }: { isActive: boolean }) {
     });
 
     return (
-        <group ref={ref} position={[0, 0, 2.5]}>
+        // 🚀 CORTAFUEGOS DE GPU: Apaga las texturas de luz que requieren mezcla
+        <group ref={ref} position={[0, 0, 2.5]} visible={isActive}>
             <sprite ref={spriteRef}>
                 <spriteMaterial map={texture} transparent blending={THREE.AdditiveBlending} opacity={isActive ? 0.7 : 0} />
             </sprite>
@@ -139,15 +132,14 @@ function CyberHalo({ isActive }: { isActive: boolean }) {
 export default function IARobotTracker({ isActive }: { isActive: boolean }) {
     return (
         <group>
-            <Environment preset="night" />
+            {/* 🚀 CORTAFUEGOS DE ENTORNO: El mapa HDRI solo existe cuando lo miramos */}
+            {isActive && <Environment preset="night" />}
             
-            {/* FONDO OPACO: Bloquea cualquier escape visual */}
             <mesh position={[0, 0, -0.6]}>
                 <planeGeometry args={[16.5, 9.5]} />
                 <meshBasicMaterial color="#010204" />
             </mesh>
 
-            {/* Túnel de partículas hacia el fondo */}
             <CyberTunnel isActive={isActive} />
 
             <group position={[0, 0, 0.5]}>
