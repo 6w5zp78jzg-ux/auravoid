@@ -26,18 +26,17 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
 
-   // --- ESTADO FÍSICO ---
    const isDragging = useRef(false);
    const previousX = useRef(0);
    const rotationRef = useRef(0);
    const velocity = useRef(0);
    const faceAngle = (Math.PI * 2) / 5;
 
-   // --- GESTIÓN DE EVENTOS (Touch y Mouse) ---
    const handlePointerDown = (e: any) => {
+       // 🛑 IMPORTANTE: Detenemos el evento para que el iPad no haga scroll
        e.stopPropagation();
-       // Importante para iPad: captura el movimiento aunque el dedo se salga del panel
        if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
+       
        isDragging.current = true;
        previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        velocity.current = 0;
@@ -48,8 +47,7 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        const deltaX = currentX - previousX.current;
        
-       // Sensibilidad de arrastre
-       velocity.current = deltaX * 0.006;
+       velocity.current = deltaX * 0.007; 
        rotationRef.current += velocity.current;
        previousX.current = currentX;
    };
@@ -59,26 +57,21 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        if (e.target.releasePointerCapture) e.target.releasePointerCapture(e.pointerId);
    };
 
-   // --- BUCLE DE FÍSICA (60 FPS) ---
    useFrame(() => {
        if (!groupRef.current) return;
        
        if (!isDragging.current) {
-           // Inercia: la velocidad disminuye gradualmente
-           velocity.current *= 0.95; 
+           velocity.current *= 0.94; // Fricción suave
            rotationRef.current += velocity.current;
            
-           // Magnetismo (Snap): se detiene justo en el panel frontal
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
+           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.12);
        }
 
-       // Cálculo de qué panel está de frente
        let index = Math.round(-rotationRef.current / faceAngle) % 5;
        if (index < 0) index += 5;
        if (index !== activeIndex) setActiveIndex(index);
 
-       // Sincronización silenciosa con el cilindro
        if (wheelDataRef.current) {
            wheelDataRef.current.rotation = rotationRef.current;
            wheelDataRef.current.activeIndex = index;
@@ -94,15 +87,16 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
        >
-           {/* Área táctil invisible más grande para facilitar el agarre */}
+           {/* Escudo invisible para facilitar el drag en dispositivos táctiles */}
            <mesh visible={false}>
-               <cylinderGeometry args={[18, 18, 12, 16]} />
+               <sphereGeometry args={[18, 20, 20]} />
            </mesh>
 
            {WIDGETS_DATA.map((widget, i) => {
                const angle = (i / 5) * Math.PI * 2;
-               const radius = 13.5; 
+               const radius = 14; 
                const isFront = i === activeIndex;
 
                return (
