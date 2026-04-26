@@ -52,7 +52,7 @@ export default function UIOverlay() {
           className="text-2xl sm:text-4xl md:text-5xl tracking-[0.3em] text-white whitespace-nowrap"
           style={{ fontFamily: 'Cinzel, serif' }}
         >
-          AURA & VOID
+    
         </h1>
         
         {/* Slogan traducido con Montserrat */}
