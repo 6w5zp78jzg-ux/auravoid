@@ -1,18 +1,31 @@
 'use client';
-import { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
+// 🚀 1. INTERFAZ PARA QUE TYPESCRIPT ENTIENDA LOS DATOS
+interface WheelData {
+  rotation: number;
+  activeIndex: number;
+}
+
 // --- SUBCOMPONENTE: CRISTAL DE INFORMACIÓN ---
-function InfoBanner({ service, index, total, radius, size, isActive }: {
+function InfoBanner({ 
+   service, 
+   index, 
+   total, 
+   radius, 
+   size, 
+   wheelDataRef 
+}: {
    service: { titulo: string, desc: string, stats: string },
    index: number,
    total: number,
    radius: number,
    size: [number, number],
-   isActive: boolean
+   wheelDataRef?: React.MutableRefObject<WheelData>
 }) {
    const meshRef = useRef<THREE.Mesh>(null);
 
@@ -21,13 +34,13 @@ function InfoBanner({ service, index, total, radius, size, isActive }: {
        const c = document.createElement('canvas');
        const ctx = c.getContext('2d');
        if (!ctx) return null;
-       c.width = 1024; c.height = 512; // Más alto para caber la descripción
+       c.width = 1024; c.height = 512; 
       
        const margin = 20;
        const pWidth = 1024 - (margin * 2);
        const pHeight = 512 - (margin * 2);
       
-       // 1. FONDO DE CRISTAL (Tu diseño original)
+       // FONDO DE CRISTAL
        const rainbowGrad = ctx.createLinearGradient(margin, margin, 1024 - margin, 512 - margin);
        rainbowGrad.addColorStop(0, 'rgba(255, 0, 0, 0.08)');   
        rainbowGrad.addColorStop(0.2, 'rgba(255, 255, 0, 0.08)');
@@ -36,7 +49,7 @@ function InfoBanner({ service, index, total, radius, size, isActive }: {
        rainbowGrad.addColorStop(0.8, 'rgba(0, 0, 255, 0.08)');  
        rainbowGrad.addColorStop(1, 'rgba(255, 0, 255, 0.08)');  
       
-       ctx.fillStyle = 'rgba(10, 10, 15, 0.5)'; // Un poco más oscuro para leer mejor
+       ctx.fillStyle = 'rgba(10, 10, 15, 0.5)'; 
        ctx.fillRect(margin, margin, pWidth, pHeight);
       
        ctx.fillStyle = rainbowGrad;
@@ -49,7 +62,7 @@ function InfoBanner({ service, index, total, radius, size, isActive }: {
        ctx.fillStyle = shine;
        ctx.fillRect(margin, margin, pWidth, pHeight);
 
-       // 2. BORDE TÁCTICO
+       // BORDE TÁCTICO
        ctx.shadowColor = 'rgba(0, 255, 255, 0.5)';
        ctx.shadowBlur = 15;                         
        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
@@ -57,7 +70,7 @@ function InfoBanner({ service, index, total, radius, size, isActive }: {
        ctx.strokeRect(margin, margin, pWidth, pHeight);
        ctx.shadowBlur = 0;
 
-       // 3. TEXTOS MAESTRO-DETALLE
+       // TEXTOS MAESTRO-DETALLE
        ctx.textAlign = 'center';
        
        // Título
@@ -85,24 +98,28 @@ function InfoBanner({ service, index, total, radius, size, isActive }: {
        return new THREE.CanvasTexture(c);
    }, [service]);
 
-   // Posicionamiento en Anillo (Dentro de la rueda)
+   // Posicionamiento en Anillo
    useEffect(() => {
        if (!meshRef.current) return;
        const angle = (index / total) * Math.PI * 2;
        meshRef.current.position.x = Math.sin(angle) * radius;
        meshRef.current.position.z = Math.cos(angle) * radius;
-       meshRef.current.position.y = 0; // Lo mantenemos plano para que encaje en el centro
+       meshRef.current.position.y = 0; 
        
        // Orientar el panel hacia afuera
        meshRef.current.lookAt(0, 0, 0);
        meshRef.current.rotateY(Math.PI);
    }, [index, total, radius]);
 
-   // Destacar el panel activo
+   // Destacar el panel activo consultando el REF silencioso
    useFrame(() => {
-       if (!meshRef.current) return;
+       if (!meshRef.current || !wheelDataRef) return;
+       
+       // 🚀 Leemos la información a 60fps sin provocar re-renders
+       const isActive = wheelDataRef.current.activeIndex === index;
        const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-       // Si es el activo, es 100% visible. Si no, se difumina a 0.15
+       
+       // Difuminamos lo que no se está viendo
        const targetOpacity = isActive ? 1 : 0.15;
        mat.opacity = THREE.MathUtils.lerp(mat.opacity, targetOpacity, 0.08);
    });
@@ -115,17 +132,15 @@ function InfoBanner({ service, index, total, radius, size, isActive }: {
    );
 }
 
-// --- COMPONENTE PRINCIPAL (Receptor de datos) ---
-// Recibe wheelRotation (ángulo actual de la rueda) y activeIndex (índice del servicio seleccionado)
-export default function InformationCore({ wheelRotation, activeIndex }: { wheelRotation: number, activeIndex: number }) {
+// --- COMPONENTE PRINCIPAL (EL NÚCLEO) ---
+export default function ServiceCylinder({ wheelDataRef }: { wheelDataRef?: React.MutableRefObject<WheelData> }) {
    const { language } = useLanguage();
    const { size } = useThree();
    const isMobile = size.width < 768;
    
-   // Factor de escala: lo hacemos MÁS PEQUEÑO que tu rueda principal para que quepa dentro
+   // Factor de escala
    const scaleFactor = isMobile ? 0.4 : 0.7; 
-
-   const RADIUS = 4.5 * scaleFactor; // Radio interior
+   const RADIUS = 4.5 * scaleFactor; 
    const BANNER_SIZE: [number, number] = [8 * scaleFactor, 4 * scaleFactor]; 
   
    // Datos Extendidos
@@ -159,21 +174,19 @@ export default function InformationCore({ wheelRotation, activeIndex }: { wheelR
 
    const coreRef = useRef<THREE.Group>(null);
 
-   // SINCRONIZACIÓN SUAVE CON LA RUEDA EXTERNA
+   // 🚀 SINCRONIZACIÓN SUAVE CON LA RUEDA EXTERNA
    useFrame(() => {
-       if (!coreRef.current) return;
-       // El núcleo sigue la rotación de la rueda, pero le aplicamos lerp 
-       // para que tenga un ligero "retraso elástico" orgánico
+       if (!coreRef.current || !wheelDataRef) return;
+       // El núcleo sigue la rotación almacenada en el Ref
        coreRef.current.rotation.y = THREE.MathUtils.lerp(
            coreRef.current.rotation.y, 
-           wheelRotation, 
+           wheelDataRef.current.rotation, 
            0.1
        );
    });
 
    return (
-       // Z = -1 para meterlo un poco hacia el fondo de la pantalla y dar profundidad
-       <group position={[0, 0, -1]}> 
+       <group position={[0, 0, 0]}> 
            <Sparkles 
                count={100} 
                scale={[RADIUS * 2, 8, RADIUS * 2]} 
@@ -192,7 +205,7 @@ export default function InformationCore({ wheelRotation, activeIndex }: { wheelR
                        total={SERVICIOS_INFO.length}
                        radius={RADIUS}
                        size={BANNER_SIZE}
-                       isActive={activeIndex === i}
+                       wheelDataRef={wheelDataRef}
                    />
                ))}
            </group>
