@@ -1,11 +1,5 @@
 import './globals.css';
 import { Providers } from '../components/Providers'; 
-
-export const metadata = {
-  title: '',
-  description: '',
-};
-
 export default function RootLayout({
   children,
 }: {
