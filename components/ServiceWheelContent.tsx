@@ -10,8 +10,8 @@ import IARobotTracker from './IARobotTracker';
 import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
-// DATA DE TÍTULOS Y COLORES
-export const WIDGETS_DATA = [
+// Privado para este archivo, sin exportaciones peligrosas
+const WIDGETS_DATA = [
   { id: 'av', Component: AudiovisualWidget, color: '#ff1493', title: 'VISUAL ENGINE' },
   { id: 'mk', Component: MarketingWidget, color: '#4169e1', title: 'NEURO MKT' },
   { id: 'ai', Component: IARobotTracker, color: '#00fa9a', title: 'AI CORE' },
@@ -94,15 +94,14 @@ export default function ServiceWheelContent({ activeIndex, setActiveIndex }: any
               <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.1} />
             </mesh>
 
-            {/* 🔮 EL TÍTULO 3D (Siempre visible, da contexto inmediato) */}
+            {/* TÍTULO 3D NATIVO (Seguro contra colapsos) */}
             <Text
-              position={[0, 5.8, 0]} // Situado justo encima del chasis
+              position={[0, 5.8, 0]}
               fontSize={1.2}
-              color={isFront ? widget.color : '#333333'} // Se ilumina si es el activo
+              color={isFront ? widget.color : '#333333'}
               anchorX="center"
               anchorY="bottom"
               letterSpacing={0.1}
-              font="https://fonts.gstatic.com/s/syncopate/v12/pe0sMIuPIYBCpEV5eFdCBfe_m_s.woff" // Fuente brutalista
             >
               {widget.title}
             </Text>
