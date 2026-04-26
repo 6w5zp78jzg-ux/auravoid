@@ -1,14 +1,8 @@
 'use client';
 import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
-
-interface WheelData {
-  rotation: number;
-  activeIndex: number;
-}
 
 function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) {
    const meshRef = useRef<THREE.Mesh>(null);
@@ -17,42 +11,42 @@ function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) 
        const c = document.createElement('canvas');
        const ctx = c.getContext('2d');
        if (!ctx) return null;
-       c.width = 1024; c.height = 512;
+       // 📐 Aumentamos resolución para nitidez
+       c.width = 1600; c.height = 600; 
       
-       const margin = 30;
-       const pWidth = 1024 - (margin * 2);
-       const pHeight = 512 - (margin * 2);
-      
-       // Estética Cristal Aura Void
-       ctx.fillStyle = 'rgba(10, 10, 15, 0.85)'; 
-       ctx.fillRect(margin, margin, pWidth, pHeight);
+       // Fondo Deep Black con degradado sutil
+       const grad = ctx.createLinearGradient(0, 0, 0, 600);
+       grad.addColorStop(0, 'rgba(5, 5, 10, 0.95)');
+       grad.addColorStop(1, 'rgba(10, 10, 20, 0.95)');
+       ctx.fillStyle = grad;
+       ctx.fillRect(0, 0, 1600, 600);
 
-       ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)';
-       ctx.lineWidth = 4;
-       ctx.strokeRect(margin, margin, pWidth, pHeight);
+       // Borde Tecnológico (solo arriba y abajo para estilo wide)
+       ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+       ctx.lineWidth = 8;
+       ctx.beginPath(); ctx.moveTo(100, 0); ctx.lineTo(1500, 0); ctx.stroke();
+       ctx.beginPath(); ctx.moveTo(100, 600); ctx.lineTo(1500, 600); ctx.stroke();
 
        ctx.textAlign = 'center';
-       // Título Principal
+       
+       // TÍTULO (Más elegante)
        ctx.fillStyle = '#00ffff';
-       ctx.font = 'bold 50px Montserrat, sans-serif';
-       ctx.fillText(service.titulo, 512, 120);
+       ctx.font = 'bold 70px Montserrat, sans-serif';
+       ctx.letterSpacing = "10px";
+       ctx.fillText(service.titulo.toUpperCase(), 800, 150);
 
-       // Separador
-       ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
-       ctx.fillRect(362, 160, 300, 3);
-
-       // Descripción con tipado corregido
-       ctx.fillStyle = '#ffffff';
-       ctx.font = '34px Montserrat, sans-serif';
+       // DESCRIPCIÓN (Más limpia y ancha)
+       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+       ctx.font = '300 38px Montserrat, sans-serif';
        const lines = service.desc.split('\n');
        lines.forEach((line: string, i: number) => {
-           ctx.fillText(line, 512, 260 + (i * 50));
+           ctx.fillText(line, 800, 300 + (i * 60));
        });
 
-       // Tag inferior
-       ctx.fillStyle = 'rgba(0, 255, 255, 0.7)';
-       ctx.font = 'bold 40px Montserrat, sans-serif';
-       ctx.fillText(service.stats, 512, 440);
+       // STATS (Botón estilizado abajo)
+       ctx.fillStyle = '#00ffff';
+       ctx.font = '800 32px Montserrat, sans-serif';
+       ctx.fillText(`// ${service.stats} //`, 800, 520);
       
        return new THREE.CanvasTexture(c);
    }, [service]);
@@ -69,7 +63,7 @@ function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) 
        if (!meshRef.current || !wheelDataRef?.current) return;
        const isActive = wheelDataRef.current.activeIndex === index;
        const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-       mat.opacity = THREE.MathUtils.lerp(mat.opacity, isActive ? 1 : 0.05, 0.1);
+       mat.opacity = THREE.MathUtils.lerp(mat.opacity, isActive ? 1 : 0.03, 0.1);
    });
 
    return (
@@ -80,40 +74,32 @@ function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) 
    );
 }
 
-export default function ServiceCylinder({ wheelDataRef }: { wheelDataRef: React.MutableRefObject<WheelData> }) {
+export default function ServiceCylinder({ wheelDataRef }: any) {
    const { language } = useLanguage();
-   const { size: screen } = useThree();
-   const isMobile = screen.width < 768;
-   
-   // 📏 AJUSTE DE TAMAÑO IMPACTANTE
-   const scaleFactor = isMobile ? 0.7 : 1.1; 
-   const RADIUS = 11.5 * scaleFactor; 
-   const BANNER_SIZE: [number, number] = [15 * scaleFactor, 7.5 * scaleFactor];
-  
+   const scale = 1.3; 
+   const RADIUS = 14 * scale; 
+   const BANNER_SIZE: [number, number] = [24 * scale, 9 * scale]; // 📐 Proporción mucho más ancha
+
    const SERVICIOS_INFO = useMemo(() => [
-       { titulo: language === 'es' ? "PRODUCCIÓN AUDIOVISUAL" : "AUDIOVISUAL PRODUCTION", desc: "Contenido cinematográfico de alto impacto.\nResolución 8K y drones tácticos.", stats: "PREMIUM STUDIO" },
-       { titulo: language === 'es' ? "MARKETING DE PRECISIÓN" : "PRECISION MARKETING", desc: "Estrategias de adquisición de usuarios.\nOptimización predictiva mediante datos.", stats: "MAXIMUM ROI" },
-       { titulo: language === 'es' ? "IA Y AUTOMATIZACIÓN" : "AI & AUTOMATION", desc: "Agentes inteligentes y redes neuronales.\nSistemas autónomos para empresas.", stats: "NEURAL CORE" },
-       { titulo: language === 'es' ? "BRANDING Y PR" : "BRANDING & PR", desc: "Arquitectura de marca e ingeniería visual.\nPosicionamiento en mercados de lujo.", stats: "TOP TIER" },
-       { titulo: language === 'es' ? "FÍSICO Y EVENTOS" : "PHYSICAL & EVENTS", desc: "Experiencias inmersivas y showrooms.\nDiseño de espacios efímeros de lujo.", stats: "LIVE IMPACT" }
+       { titulo: language === 'es' ? "Producción Audiovisual" : "Audiovisual Production", desc: "Cinematografía de alto impacto con narrativa inmersiva.\nResolución 8K RAW y despliegue de drones tácticos.", stats: "PREMIUM CINEMA" },
+       { titulo: language === 'es' ? "Marketing de Precisión" : "Precision Marketing", desc: "Estrategias de adquisición basadas en comportamiento.\nOptimización predictiva y análisis masivo de datos.", stats: "DATA DRIVEN" },
+       { titulo: language === 'es' ? "IA y Automatización" : "AI & Automation", desc: "Integración de agentes autónomos y redes neuronales.\nSistemas cognitivos para escalabilidad empresarial.", stats: "NEURAL CORE" },
+       { titulo: language === 'es' ? "Branding y PR" : "Branding & PR", desc: "Ingeniería de percepción visual y autoridad de marca.\nPosicionamiento en mercados globales de alto valor.", stats: "TOP AUTHORITY" },
+       { titulo: language === 'es' ? "Físico y Eventos" : "Physical & Events", desc: "Diseño de espacios efímeros y experiencias sensoriales.\nShowrooms tecnológicos y activaciones de lujo.", stats: "IMMERSIVE LIVE" }
    ], [language]);
 
    const coreRef = useRef<THREE.Group>(null);
-
    useFrame(() => {
        if (coreRef.current && wheelDataRef.current) {
-           coreRef.current.rotation.y = THREE.MathUtils.lerp(coreRef.current.rotation.y, wheelDataRef.current.rotation, 0.15);
+           coreRef.current.rotation.y = THREE.MathUtils.lerp(coreRef.current.rotation.y, wheelDataRef.current.rotation, 0.1);
        }
    });
 
    return (
-       <group>
-           <Sparkles count={150} scale={[20, 10, 20]} size={3} speed={0.2} color="#00ffff" />
-           <group ref={coreRef}>
-               {SERVICIOS_INFO.map((s, i) => (
-                   <InfoBanner key={i} service={s} index={i} total={5} radius={RADIUS} size={BANNER_SIZE} wheelDataRef={wheelDataRef} />
-               ))}
-           </group>
+       <group ref={coreRef}>
+           {SERVICIOS_INFO.map((s, i) => (
+               <InfoBanner key={i} service={s} index={i} total={5} radius={RADIUS} size={BANNER_SIZE} wheelDataRef={wheelDataRef} />
+           ))}
        </group>
    );
 }
