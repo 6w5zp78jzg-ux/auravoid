@@ -1,7 +1,7 @@
 'use client';
 import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Sparkles, Text } from '@react-three/drei';
+import { Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLanguage } from './Providers';
 
@@ -10,7 +10,21 @@ interface WheelData {
   activeIndex: number;
 }
 
-function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) {
+function InfoBanner({ 
+   service, 
+   index, 
+   total, 
+   radius, 
+   size, 
+   wheelDataRef 
+}: {
+   service: { titulo: string, desc: string, stats: string },
+   index: number,
+   total: number,
+   radius: number,
+   size: [number, number],
+   wheelDataRef?: React.MutableRefObject<WheelData>
+}) {
    const meshRef = useRef<THREE.Mesh>(null);
 
    const texture = useMemo(() => {
@@ -23,36 +37,26 @@ function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) 
        const pWidth = 1024 - (margin * 2);
        const pHeight = 512 - (margin * 2);
       
-       // Fondo de Cristal Aura Void
-       const rainbowGrad = ctx.createLinearGradient(margin, margin, 1024 - margin, 512 - margin);
-       rainbowGrad.addColorStop(0, 'rgba(0, 255, 255, 0.05)');   
-       rainbowGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)');
-       rainbowGrad.addColorStop(1, 'rgba(0, 255, 255, 0.05)');  
-      
-       ctx.fillStyle = 'rgba(5, 5, 10, 0.8)'; 
-       ctx.fillRect(margin, margin, pWidth, pHeight);
-       ctx.fillStyle = rainbowGrad;
+       ctx.fillStyle = 'rgba(10, 10, 15, 0.8)'; 
        ctx.fillRect(margin, margin, pWidth, pHeight);
 
-       // Borde Neón Fino
-       ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
-       ctx.lineWidth = 2;
-       ctx.strokeRect(margin, margin, pWidth, pHeight);
-
-       // Textos
        ctx.textAlign = 'center';
-       ctx.fillStyle = '#00ffff';
-       ctx.font = 'bold 48px Montserrat, sans-serif';
+       ctx.fillStyle = '#ffffff';
+       ctx.font = '800 45px "Montserrat", sans-serif';
        ctx.fillText(service.titulo, 512, 120);
 
-       ctx.fillStyle = '#ffffff';
-       ctx.font = '32px Montserrat, sans-serif';
+       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+       ctx.font = '400 32px "Montserrat", sans-serif';
        const lines = service.desc.split('\n');
-       lines.forEach((line, i) => ctx.fillText(line, 512, 250 + (i * 45)));
+       
+       // 🚀 SOLUCIÓN AL ERROR: Tipado explícito (line: string, i: number)
+       lines.forEach((line: string, i: number) => {
+           ctx.fillText(line, 512, 240 + (i * 45));
+       });
 
-       ctx.fillStyle = 'rgba(0, 255, 255, 0.8)';
-       ctx.font = 'bold 40px Montserrat, sans-serif';
-       ctx.fillText(service.stats, 512, 440);
+       ctx.fillStyle = '#00ffff';
+       ctx.font = '700 45px "Montserrat", sans-serif';
+       ctx.fillText(service.stats, 512, 420);
       
        return new THREE.CanvasTexture(c);
    }, [service]);
@@ -66,7 +70,7 @@ function InfoBanner({ service, index, total, radius, size, wheelDataRef }: any) 
    }, [index, total, radius]);
 
    useFrame(() => {
-       if (!meshRef.current || !wheelDataRef.current) return;
+       if (!meshRef.current || !wheelDataRef?.current) return;
        const isActive = wheelDataRef.current.activeIndex === index;
        const mat = meshRef.current.material as THREE.MeshBasicMaterial;
        mat.opacity = THREE.MathUtils.lerp(mat.opacity, isActive ? 1 : 0.1, 0.1);
@@ -98,7 +102,6 @@ export default function ServiceCylinder({ wheelDataRef }: { wheelDataRef: React.
 
    useFrame(() => {
        if (coreRef.current && wheelDataRef.current) {
-           // Sincronización absoluta con la rueda
            coreRef.current.rotation.y = THREE.MathUtils.lerp(coreRef.current.rotation.y, wheelDataRef.current.rotation, 0.15);
        }
    });
