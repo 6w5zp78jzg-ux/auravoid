@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef } from 'react';
+import React, { useRef, useState, Suspense } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useScroll } from '@react-three/drei';
 import * as THREE from 'three';
@@ -7,18 +7,15 @@ import * as THREE from 'three';
 import ServiceCylinder from './ServiceCylinder';
 import ServiceWheelContent from './ServiceWheelContent';
 
-// --- CONTROLADOR DE CÁMARA CINEMATOGRÁFICA ---
+// --- CONTROLADOR DE CÁMARA ---
 function CameraRig() {
   const scroll = useScroll();
   const { viewport } = useThree();
 
   useFrame((state) => {
-    // scroll.offset va de 0 (arriba) a 1 (abajo de la página).
-    // Usamos viewport.height * 1.5 para bajar exactamente hasta la Rueda Pentagonal.
+    // Viaje desde el centro (0) hasta la Rueda (Y = -viewport.height * 1.5)
     const targetY = -(scroll.offset * (viewport.height * 1.5));
-    
-    // Mantenemos la X (0) y la Z (30) fijas para un efecto scrollytelling puro.
-    state.camera.position.y = targetY;
+    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.1);
   });
 
   return null;
@@ -27,27 +24,56 @@ function CameraRig() {
 export default function SceneManager() {
   const { viewport } = useThree();
 
+  // 🧠 --- EL CEREBRO DE LA ESCENA --- 🧠
+  // Aquí guardamos la rotación y el panel que está activo para que ambos hablen el mismo idioma
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+
   return (
     <group>
-      {/* 💡 --- SISTEMA DE ILUMINACIÓN NATIVA (Para ver el pentágono) --- 💡 */}
+      {/* ILUMINACIÓN GLOBAL */}
       <ambientLight intensity={0.4} />
-      {/* Luz focal fuerte sobre la zona de la Rueda Pentagonal */}
-      <pointLight position={[0, -viewport.height * 1.5, 30]} intensity={1.5} color="#4c1d95" distance={60} decay={2} />
+      <pointLight 
+        position={[0, -viewport.height * 1.5, 20]} 
+        intensity={2} 
+        color="#00ffff" 
+        distance={50} 
+      />
       
-      {/* Nuestro Rig de Cámara que lee el scroll y pilota el viaje visual */}
       <CameraRig />
 
-      {/* SECCIÓN 1: EL CILINDRO INICIAL */}
-      {/* Está anclado en Y=0 (centro de la pantalla superior) */}
-      <group position={[0, 0, 0]}>
-        <ServiceCylinder />
+      {/* 🚀 SECCIÓN UNIFICADA: EL REACTOR DE SERVICIOS 🚀 */}
+      {/* Colocamos ambos en la misma posición Y para que se fusionen */}
+      <group position={[0, -viewport.height * 1.5, 0]}>
+        
+        {/* 1. EL CILINDRO (DETALLE / NÚCLEO) 
+            Ahora vive dentro de la rueda y recibe la información del cerebro
+        */}
+        <group position={[0, 0, -2]}> {/* Lo metemos un poco hacia atrás (Z=-2) */}
+          <ServiceCylinder 
+            wheelRotation={wheelRotation} 
+            activeIndex={activeIndex} 
+          />
+        </group>
+
+        {/* 2. LA RUEDA (MAESTRO / SELECTOR)
+            El usuario interactúa aquí. Al girar, avisa al cerebro mediante 'onSync'
+        */}
+        <group position={[0, 0, 0]}>
+          <ServiceWheelContent 
+            onSync={(rot, index) => {
+              setWheelRotation(rot);
+              setActiveIndex(index);
+            }} 
+          />
+        </group>
+
       </group>
 
-      {/* SECCIÓN 2: LA RUEDA PENTAGONAL "HERO" */}
-      {/* Está anclada más abajo en el espacio 3D (Y = -viewport.height * 1.5) */}
-      {/* Cuando el Rig de Cámara baje, se encontrará de frente con ella. */}
-      <group position={[0, -viewport.height * 1.5, 0]}>
-        <ServiceWheelContent />
+      {/* OPCIONAL: Puedes dejar un elemento decorativo en la parte superior (Y=0) 
+          para que el inicio no esté vacío antes de hacer scroll */}
+      <group position={[0, 0, -5]}>
+         {/* Unas luces o partículas de bienvenida */}
       </group>
     </group>
   );

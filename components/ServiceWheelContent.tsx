@@ -11,6 +11,11 @@ import IARobotTracker from './IARobotTracker';
 import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
+// 🚀 1. DEFINIMOS LA INTERFAZ PARA EL CHIVATO A TYPESCRIPT
+interface ServiceWheelProps {
+  onSync?: (rot: number, index: number) => void;
+}
+
 const WIDGETS_DATA = [
   { id: 'av', Component: AudiovisualWidget, color: '#ff1493' }, // Rosa Neón
   { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
@@ -19,7 +24,8 @@ const WIDGETS_DATA = [
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-export default function ServiceWheelContent() {
+// 🚀 2. LE DECIMOS AL COMPONENTE QUE RECIBA onSync
+export default function ServiceWheelContent({ onSync }: ServiceWheelProps) {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
 
@@ -52,16 +58,24 @@ export default function ServiceWheelContent() {
 
    useFrame(() => {
        if (!groupRef.current) return;
+       
        if (!isDragging.current) {
            velocity.current *= 0.95;
            rotationRef.current += velocity.current;
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
            rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
-
-           let index = Math.round(-rotationRef.current / faceAngle) % 5;
-           if (index < 0) index += 5;
-           if (index !== activeIndex) setActiveIndex(index);
        }
+
+       // Lógica de cálculo de índice original (intacta)
+       let index = Math.round(-rotationRef.current / faceAngle) % 5;
+       if (index < 0) index += 5;
+       if (index !== activeIndex) setActiveIndex(index);
+
+       // 🚀 3. EL CHIVATO: Avisamos al SceneManager 60 veces por segundo
+       if (onSync) {
+           onSync(rotationRef.current, index);
+       }
+
        groupRef.current.rotation.y = rotationRef.current;
    });
 
