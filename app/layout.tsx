@@ -2,8 +2,8 @@ import './globals.css';
 import { Providers } from '../components/Providers'; 
 
 export const metadata = {
-  title: 'AURA & VOID',
-  description: 'Laboratorio de ingeniería psicológica',
+  title: '',
+  description: '',
 };
 
 export default function RootLayout({
