@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, Suspense } from 'react';
+import React, { useRef } from 'react';
 import ServiceCylinder from './ServiceCylinder';
 import ServiceWheelContent from './ServiceWheelContent';
 
@@ -9,16 +9,13 @@ export default function SceneManager() {
   return (
     <group>
       <ambientLight intensity={2} />
-      <pointLight position={[10, 10, 10]} intensity={2} />
+      <pointLight position={[0, 10, 20]} intensity={2} />
 
       <group position={[0, 0, 0]}>
-        {/* RUEDA ARRIBA */}
         <group position={[0, 4, 0]}>
           <ServiceWheelContent wheelDataRef={wheelDataRef} />
         </group>
-
-        {/* CILINDRO ABAJO */}
-        <group position={[0, -5, 0]}>
+        <group position={[0, -6, 0]}>
           <ServiceCylinder wheelDataRef={wheelDataRef} />
         </group>
       </group>
