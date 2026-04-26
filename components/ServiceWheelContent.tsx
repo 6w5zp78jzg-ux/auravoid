@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { Edges, useScroll } from '@react-three/drei';
 import * as THREE from 'three';
 
+// ... (Tus importaciones de widgets se mantienen igual) ...
 import AudiovisualWidget from './AudiovisualWidget';
 import MarketingWidget from './MarketingWidget';
 import IARobotTracker from './IARobotTracker';
@@ -18,7 +19,6 @@ const WIDGETS_DATA = [
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-// 🧠 Recibimos el estado desde SceneManager
 interface SystemCoreProps {
   activeIndex: number;
   setActiveIndex: (index: number) => void;
@@ -35,7 +35,7 @@ export default function ServiceWheelContent({ activeIndex, setActiveIndex }: Sys
    const faceAngle = (Math.PI * 2) / 5;
 
    const handlePointerDown = (e: any) => {
-       if (scroll.offset > 0.05) return; // Bloquea si ya empezamos a hacer zoom
+       if (scroll.offset > 0.05) return;
        e.stopPropagation();
        if(e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
        isDragging.current = true;
@@ -59,35 +59,19 @@ export default function ServiceWheelContent({ activeIndex, setActiveIndex }: Sys
    useFrame(() => {
        if (!groupRef.current) return;
 
-       // 1. CÁLCULO DE ZOOM BALÍSTICO
-       // Multiplicamos por 2 y limitamos a 1. Así el zoom termina al 50% del scroll.
-       const zoomProgress = Math.min(scroll.offset * 2, 1); 
-
-       // Target Z: La cámara está en Z=28. El panel frontal está a Z=11.35 relativo a la rueda.
-       // Acercamos la rueda hasta Z=15. Así el panel queda en Z=26.35 (justo en la cara del usuario).
-       const targetZ = THREE.MathUtils.lerp(0, 15, zoomProgress);
-       
-       // Target Y: Llevamos la rueda a Y=0 para que el panel frontal quede exactamente en el centro
-       const targetY = THREE.MathUtils.lerp(6.5, 0, zoomProgress);
-
-       groupRef.current.position.z = targetZ;
-       groupRef.current.position.y = targetY;
-
-       // 2. CONTROL DE ROTACIÓN Y SNAP PERFECTO
-       if (!isDragging.current) {
+       // Lógica balística: Si hacemos scroll, la rueda se alinea al frente y se bloquea
+       if (scroll.offset > 0.05) {
+           velocity.current = 0; // Frenado en seco
+           // Calculamos el ángulo exacto del panel actual
+           const targetAngle = activeIndex * faceAngle * -1;
+           // Interpolación rígida para asegurar el centrado absoluto
+           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetAngle, 0.15);
+       } else if (!isDragging.current) {
            velocity.current *= 0.95;
-           
-           // Si el usuario hace zoom, forzamos un frenado inmediato para evitar desvíos
-           if (scroll.offset > 0.05) velocity.current = 0; 
-
            rotationRef.current += velocity.current;
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
+           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
            
-           // Interpolación dura hacia el snap si estamos en pleno zoom
-           const lerpSpeed = scroll.offset > 0.05 ? 0.2 : 0.1;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, lerpSpeed);
-
-           // Detectamos y elevamos el estado activo
            let index = Math.round(-rotationRef.current / faceAngle) % 5;
            if (index < 0) index += 5;
            if (index !== activeIndex) setActiveIndex(index);
@@ -99,7 +83,7 @@ export default function ServiceWheelContent({ activeIndex, setActiveIndex }: Sys
    return (
        <group 
           ref={groupRef} 
-          position={[0, 6.5, 0]} 
+          position={[0, 6.5, 0]} // La rueda NO se mueve de aquí
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
