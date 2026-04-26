@@ -1,155 +1,149 @@
 'use client';
-import React, { useRef, useState, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Text, Line, Float } from '@react-three/drei';
 import * as THREE from 'three';
 
-export default function MarketingWidget({ isActive }: { isActive: boolean }) {
-    const [dataStream, setDataStream] = useState<string>('0x000000');
-    const [metrics, setMetrics] = useState({ a: 84, b: 92, c: 99 });
-    const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+// --- 1. COMPONENTE: NODOS DE ADQUISICIÓN (Vida y Objetivos) ---
+function NeuralNodes({ isActive }: { isActive: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  // Nodos fijos con IDs para que no cambien en cada render
+  const nodes = useMemo(() => [
+    { pos: [4, 2, 0.2], id: "0xAF2", label: "LEAD_A" },
+    { pos: [-3, 3, 0.2], id: "0xBD9", label: "CONV_X" },
+    { pos: [5, -2, 0.2], id: "0xCE1", label: "ROI_UP" },
+    { pos: [-4, -2.5, 0.2], id: "0x992", label: "FLUX_Z" },
+    { pos: [0, -3.5, 0.2], id: "0x11B", label: "NODE_0" },
+  ], []);
 
-    // 1. Lógica original de generación de datos
-    useEffect(() => {
-        if (!isActive) return;
-        const interval = setInterval(() => {
-            setDataStream('0x' + Math.random().toString(16).slice(2, 8).toUpperCase());
-            setMetrics({
-                a: Math.floor(80 + Math.random() * 19),
-                b: Math.floor(85 + Math.random() * 14),
-                c: Math.floor(95 + Math.random() * 5),
-            });
-        }, 80);
-        return () => clearInterval(interval);
-    }, [isActive]);
-
-    // 2. Mapeo del ratón 3D a coordenadas del HUD (Parallax)
-    useFrame((state) => {
-        if (!isActive) return;
-        // Convertimos el rango [-1, 1] de Three.js a [0, 100] para el CSS
-        const targetX = (state.mouse.x + 1) * 50;
-        const targetY = (-state.mouse.y + 1) * 50;
-        
-        // Suavizado (Lerp sutil)
-        setMousePos(prev => ({
-            x: prev.x + (targetX - prev.x) * 0.1,
-            y: prev.y + (targetY - prev.y) * 0.1
-        }));
+  useFrame((state) => {
+    if (!groupRef.current || !isActive) return;
+    const t = state.clock.getElapsedTime();
+    groupRef.current.children.forEach((child, i) => {
+      // Movimiento orgánico y parpadeo
+      const pulse = 0.8 + Math.sin(t * 4 + i) * 0.2;
+      child.scale.set(pulse, pulse, 1);
     });
+  });
 
-    return (
-        <group>
-            {/* FONDO OPACO: Evita que se vea lo que hay detrás de la rueda */}
-            <mesh position={[0, 0, -0.01]}>
-                <planeGeometry args={[16.5, 9.5]} />
-                <meshBasicMaterial color="#020202" />
-            </mesh>
-
-            {/* INTEGRACIÓN DEL HUD ORIGINAL */}
-            <Html
-                transform
-                center
-                distanceFactor={8.2}
-                position={[0, 0, 0.05]} // Ligeramente adelantado
-                style={{
-                    width: '800px', // Ancho fijo para mantener proporciones
-                    height: '450px',
-                    opacity: isActive ? 1 : 0,
-                    transition: 'opacity 0.5s ease',
-                    pointerEvents: 'none' // Para que no interfiera con el scroll de la rueda
-                }}
-            >
-                <div className="relative w-full h-full bg-[#020202] rounded-xl overflow-hidden font-mono border border-white/10 select-none">
-                    
-                    {/* 1. FONDO DE CUADRÍCULA (Parallax original) */}
-                    <div 
-                        className="absolute inset-0 opacity-20"
-                        style={{
-                            backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)',
-                            backgroundSize: '25px 25px',
-                            transform: `translate(${(mousePos.x - 50) * -0.3}px, ${(mousePos.y - 50) * -0.3}px)`
-                        }}
-                    />
-
-                    {/* 2. ANILLOS DE RADAR Y ESCÁNER (Animaciones originales) */}
-                    <div 
-                        className="absolute inset-0 flex items-center justify-center transition-transform duration-100 ease-out"
-                        style={{ transform: `translate(${(mousePos.x - 50) * 0.4}px, ${(mousePos.y - 50) * 0.4}px)` }}
-                    >
-                        {/* Anillo exterior punteado */}
-                        <div className="absolute w-[280px] h-[280px] border border-white/20 rounded-full border-dashed animate-[spin_12s_linear_infinite]" />
-                        
-                        {/* Anillo intermedio */}
-                        <div className="absolute w-[200px] h-[200px] border border-cyan-500/30 rounded-full" />
-                        
-                        {/* Barrido de Radar (Conic Gradient) */}
-                        <div className="absolute w-[200px] h-[200px] rounded-full animate-[spin_4s_linear_infinite]" 
-                             style={{ background: 'conic-gradient(from 0deg, transparent 70%, rgba(0, 255, 255, 0.4) 100%)' }} 
-                        />
-
-                        {/* Retícula central */}
-                        <div className="absolute w-8 h-8 border border-white/40" />
-                        <div className="absolute w-2 h-2 bg-cyan-400 rounded-full shadow-[0_0_15px_#00ffff]" />
-                    </div>
-
-                    {/* 3. PUNTERO TÁCTICO (Sigue al ratón) */}
-                    <div 
-                        className="absolute w-[50px] h-[50px] z-20"
-                        style={{ 
-                            left: `${mousePos.x}%`, top: `${mousePos.y}%`,
-                            transform: 'translate(-50%, -50%)',
-                        }}
-                    >
-                        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400" />
-                        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400" />
-                        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400" />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400" />
-                        
-                        <div className="absolute top-14 left-1/2 -translate-x-1/2 text-[9px] text-cyan-400 whitespace-nowrap tracking-[2px]">
-                            POS_{mousePos.x.toFixed(0)}:{mousePos.y.toFixed(0)}
-                        </div>
-                    </div>
-
-                    {/* 4. OVERLAYS DE DATOS (HUD) */}
-                    <div className="absolute inset-0 p-6 flex flex-col justify-between text-[11px] text-white/70 tracking-[2px] z-10">
-                        <div className="flex justify-between items-start">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-cyan-500 font-bold text-xs">AURA.SYS_TARGETING</span>
-                                <span>ALG: NEURAL_VOID_V2</span>
-                                <span className="text-white/40">HASH: {dataStream}</span>
-                            </div>
-                            <div className="text-right flex flex-col gap-1 font-bold">
-                                <span className="animate-pulse text-white">LIVE_TRACKING</span>
-                                <span className="text-[10px] text-cyan-400">{isActive ? 'ACQUIRING...' : 'STANDBY'}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between items-end">
-                            <div className="flex gap-8">
-                                <div className="flex flex-col">
-                                    <span className="text-white/30 text-[9px]">CTR_RT</span>
-                                    <span className="text-white text-lg font-light">{metrics.a}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-white/30 text-[9px]">CONV_OPT</span>
-                                    <span className="text-white text-lg font-light">{metrics.b}%</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-white/30 text-[9px]">RET_CORE</span>
-                                    <span className="text-cyan-400 text-lg font-bold">{metrics.c}%</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-[9px] opacity-40">UPLINK_STABLE</span>
-                                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]" />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Viñeteo interior para profundidad */}
-                    <div className="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.9)] pointer-events-none" />
-                </div>
-            </Html>
+  return (
+    <group ref={groupRef}>
+      {nodes.map((n, i) => (
+        <group key={i} position={n.pos as any}>
+          {/* Marcador táctico (Cuadrado rotado) */}
+          <mesh rotation={[0, 0, Math.PI / 4]}>
+            <planeGeometry args={[0.25, 0.25]} />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.7} />
+          </mesh>
+          {/* Etiquetas de datos nativas (No fallan como el HTML) */}
+          <Text position={[0.4, 0, 0]} fontSize={0.14} color="#00ffff" anchorX="left" font="/fonts/GeistMono-Bold.woff">
+            {`${n.label}\n${n.id}`}
+          </Text>
         </group>
-    );
+      ))}
+    </group>
+  );
+}
+
+// --- 2. COMPONENTE: BARRAS DE RENDIMIENTO (Infografías) ---
+function MarketBars({ isActive }: { isActive: boolean }) {
+  const barsRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (!barsRef.current || !isActive) return;
+    const t = state.clock.getElapsedTime();
+    barsRef.current.children.forEach((bar, i) => {
+      // Cada barra tiene su propia frecuencia de movimiento
+      const scaleY = 0.5 + Math.abs(Math.sin(t * 5 + i * 0.3)) * 2;
+      bar.scale.y = scaleY;
+    });
+  });
+
+  return (
+    <group ref={barsRef} position={[-7.5, -3.8, 0.2]}>
+      {Array.from({ length: 18 }).map((_, i) => (
+        <mesh key={i} position={[i * 0.2, 0, 0]}>
+          <planeGeometry args={[0.08, 1]} />
+          <meshBasicMaterial color={i % 2 === 0 ? "#00ffff" : "#ffffff"} transparent opacity={0.5} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// --- 3. COMPONENTE PRINCIPAL ---
+export default function MarketingWidget({ isActive }: { isActive: boolean }) {
+  const sweepRef = useRef<THREE.Mesh>(null);
+  const [hex, setHex] = useState('0x000000');
+
+  useEffect(() => {
+    if (!isActive) return;
+    const interval = setInterval(() => {
+      setHex('0x' + Math.random().toString(16).slice(2, 8).toUpperCase());
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isActive]);
+
+  useFrame((_, delta) => {
+    if (sweepRef.current && isActive) sweepRef.current.rotation.z -= delta * 3;
+  });
+
+  return (
+    <group>
+      {/* 🛑 FONDO DE SEGURIDAD (Evita colapsos visuales) */}
+      <mesh position={[0, 0, -0.1]}>
+        <planeGeometry args={[16.5, 9.5]} />
+        <meshBasicMaterial color="#010810" />
+      </mesh>
+
+      {/* 1. REJILLA MILIMÉTRICA TÁCTICA */}
+      <group position={[0, 0, 0.01]}>
+        {Array.from({ length: 20 }).map((_, i) => (
+          <Line key={`v-${i}`} points={[[(i - 10) * 0.8, -5, 0], [(i - 10) * 0.8, 5, 0]]} color="#00ffff" lineWidth={0.5} transparent opacity={0.1} />
+        ))}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <Line key={`h-${i}`} points={[[-9, (i - 6) * 0.8, 0], [9, (i - 6) * 0.8, 0]]} color="#00ffff" lineWidth={0.5} transparent opacity={0.1} />
+        ))}
+      </group>
+
+      {/* 2. RADAR Y ESCÁNER (Puro WebGL) */}
+      <group position={[0, 0, 0.05]}>
+        {[2.5, 4, 5.2].map((r, i) => (
+          <Line key={i} points={new THREE.EllipseCurve(0, 0, r, r, 0, Math.PI * 2, false, 0).getPoints(64).map(p => [p.x, p.y, 0]) as any} color="#00ffff" lineWidth={1} transparent opacity={0.2} />
+        ))}
+        <mesh ref={sweepRef}>
+          <planeGeometry args={[5.2, 0.05]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.7} />
+          {/* Pivote del barrido */}
+          <primitive object={new THREE.Object3D()} position={[-2.6, 0, 0]} />
+        </mesh>
+      </group>
+
+      {/* 3. VIDA: NODOS Y BARRAS */}
+      <NeuralNodes isActive={isActive} />
+      <MarketBars isActive={isActive} />
+
+      {/* 4. TEXTOS HUD (Inmunes a Safari) */}
+      <group position={[-7.8, 4.2, 0.3]}>
+        <Text fontSize={0.5} color="#00ffff" anchorX="left" font="/fonts/GeistMono-Bold.woff">
+          MARKETING_NEURAL_UPLINK
+        </Text>
+        <Text position={[0, -0.6, 0]} fontSize={0.18} color="#ffffff" anchorX="left" fillOpacity={0.6}>
+          {`SYS_STATUS: ACTIVE\nACQUIRING_HASH: ${hex}`}
+        </Text>
+      </group>
+
+      <group position={[7.8, -4, 0.3]}>
+        <Text fontSize={0.9} color="#ffffff" anchorX="right">
+          99.8%
+        </Text>
+        <Text position={[0, -0.6, 0]} fontSize={0.15} color="#00ffff" anchorX="right" fillOpacity={0.5}>
+          CONVERSION_OPTIMIZATION
+        </Text>
+      </group>
+
+      <pointLight position={[0, 0, 5]} intensity={isActive ? 15 : 0} color="#00ffff" />
+    </group>
+  );
 }
