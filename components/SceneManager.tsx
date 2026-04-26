@@ -8,27 +8,35 @@ import ServiceWheelContent from './ServiceWheelContent';
 
 export default function SceneManager() {
   const { viewport } = useThree();
+  // El cerebro compartido para la rotación síncrona
   const wheelDataRef = useRef({ rotation: 0, activeIndex: 0 });
 
   return (
     <Suspense fallback={null}>
-      {/* 1. LUZ TOTAL: Si esto no los ilumina, nada lo hará */}
-      <ambientLight intensity={2} />
-      <pointLight position={[0, 0, 15]} intensity={3} />
+      {/* Iluminación Táctica */}
+      <ambientLight intensity={1.2} />
+      <pointLight position={[0, 5, 15]} intensity={2} color="#00ffff" />
+      <pointLight position={[0, -5, 15]} intensity={2} color="#ffffff" />
 
-      {/* 2. POSICIONAMIENTO EN EL CENTRO (Y=0) */}
+      {/* 🛠️ ESTRUCTURA UNIFICADA AURA VOID */}
       <group position={[0, 0, 0]}>
         
-        {/* LA RUEDA: Un poco arriba del centro */}
-        <group position={[0, 3, 0]} scale={0.7}>
+        {/* NIVEL SUPERIOR: LA RUEDA (Selector) */}
+        <group position={[0, 4.5, 0]} scale={0.75}>
           <ServiceWheelContent wheelDataRef={wheelDataRef} />
         </group>
 
-        {/* EL CILINDRO: Un poco abajo del centro */}
-        <group position={[0, -4, 0]} scale={0.7}>
+        {/* NIVEL INFERIOR: EL CILINDRO (Información) */}
+        {/* Lo hemos subido un poco para que no haya tanto hueco vacío */}
+        <group position={[0, -5, 0]} scale={0.75}>
           <ServiceCylinder wheelDataRef={wheelDataRef} />
         </group>
 
+        {/* NÚCLEO CENTRAL: Eje de conexión visual */}
+        <mesh position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.05, 0.05, 22, 12]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.2} />
+        </mesh>
       </group>
     </Suspense>
   );
