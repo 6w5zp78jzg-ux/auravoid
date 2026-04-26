@@ -1,16 +1,18 @@
 'use client';
 import React, { useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useScroll, Scroll } from '@react-three/drei';
+import { useScroll } from '@react-three/drei';
 import * as THREE from 'three';
-
 import SystemCore from './ServiceWheelContent';
 
-// --- RIG DE CÁMARA (Mantenemos el encuadre perfecto) ---
 function CameraRig() {
   const scroll = useScroll();
   useFrame((state) => {
+    // Zoom y Enfoque
     const zoomProgress = Math.min(scroll.offset * 2, 1);
+    
+    // Y: 12 (Panorámica) -> 6.5 (Centro Rueda)
+    // Z: 45 (Lejos) -> 26.5 (Encuadre)
     const targetY = THREE.MathUtils.lerp(12, 6.5, zoomProgress);
     const targetZ = THREE.MathUtils.lerp(45, 26.5, zoomProgress); 
     const targetRotX = THREE.MathUtils.lerp(-Math.PI / 10, 0, zoomProgress);
@@ -36,8 +38,6 @@ export default function SceneManager() {
       <group position={[0, 0, 0]}>
         <SystemCore activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
       </group>
-
-      {/* Eliminamos el Scroll HTML de aquí si lo vamos a manejar dentro del SystemCore como <Html transform> */}
     </group>
   );
 }
