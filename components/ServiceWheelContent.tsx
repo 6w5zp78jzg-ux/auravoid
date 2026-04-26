@@ -4,6 +4,21 @@ import { useFrame } from '@react-three/fiber';
 import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
 
+// Importa tus widgets. Asegúrate de que las rutas sean correctas.
+import AudiovisualWidget from './AudiovisualWidget';
+import MarketingWidget from './MarketingWidget';
+import IARobotTracker from './IARobotTracker';
+import BrandingWidget from './BrandingWidget';
+import EventsWidget from './EventsWidget';
+
+const WIDGETS = [
+  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' }, 
+  { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
+  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
+  { id: 'br', Component: BrandingWidget, color: '#ffff00' },
+  { id: 'ev', Component: EventsWidget, color: '#9932cc' }
+];
+
 export default function ServiceWheelContent({ wheelDataRef }: any) {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
@@ -25,7 +40,7 @@ export default function ServiceWheelContent({ wheelDataRef }: any) {
        if (!isDragging.current) return;
        const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
        const deltaX = currentX - previousX.current;
-       velocity.current = deltaX * 0.01; // Máxima sensibilidad para probar
+       velocity.current = deltaX * 0.008; 
        rotationRef.current += velocity.current;
        previousX.current = currentX;
    };
@@ -38,15 +53,16 @@ export default function ServiceWheelContent({ wheelDataRef }: any) {
    useFrame(() => {
        if (!groupRef.current) return;
        if (!isDragging.current) {
-           velocity.current *= 0.9;
+           velocity.current *= 0.95; 
            rotationRef.current += velocity.current;
            const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
            rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
        }
+
        let index = Math.round(-rotationRef.current / faceAngle) % 5;
        if (index < 0) index += 5;
        if (index !== activeIndex) setActiveIndex(index);
-       
+
        if (wheelDataRef.current) {
            wheelDataRef.current.rotation = rotationRef.current;
            wheelDataRef.current.activeIndex = index;
@@ -55,22 +71,36 @@ export default function ServiceWheelContent({ wheelDataRef }: any) {
    });
 
    return (
-       <group ref={groupRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}>
-           {/* Área de toque gigante */}
+       <group 
+          ref={groupRef} 
+          onPointerDown={handlePointerDown} 
+          onPointerMove={handlePointerMove} 
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+       >
+           {/* Escudo invisible gigante para asegurar el tacto */}
            <mesh visible={false}>
-               <sphereGeometry args={[20, 16, 16]} />
+               <sphereGeometry args={[25, 16, 16]} />
            </mesh>
 
-           {[0, 1, 2, 3, 4].map((i) => {
-               const colors = ['#ff1493', '#4169e1', '#00fa9a', '#ffff00', '#9932cc'];
+           {WIDGETS.map((widget, i) => {
                const angle = (i / 5) * Math.PI * 2;
+               const radius = 16; // 📐 Radio Wide
+               const isFront = i === activeIndex;
+
                return (
-                   <group key={i} position={[Math.sin(angle) * 15, 0, Math.cos(angle) * 15]} rotation={[0, angle, 0]}>
+                   <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
+                       {/* Chasis */}
                        <mesh>
-                           <boxGeometry args={[24, 10, 0.5]} />
-                           <meshStandardMaterial color={colors[i]} />
-                           <Edges color="white" />
+                           <boxGeometry args={[24, 10, 0.4]} />
+                           <meshStandardMaterial color="#050505" metalness={1} roughness={0.5} />
+                           <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.1} />
                        </mesh>
+                       
+                       {/* Contenido (Widgets Reales) */}
+                       <group position={[0, 0, 0.3]}>
+                           <widget.Component isActive={isFront} />
+                       </group>
                    </group>
                );
            })}
