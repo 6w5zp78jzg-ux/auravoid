@@ -1,20 +1,20 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useScroll, Scroll } from '@react-three/drei';
 import * as THREE from 'three';
 
-// 🌐 Importamos el núcleo de la rueda que ya tienes
 import SystemCore from './ServiceWheelContent';
 
-// --- DATA DE LOS SERVICIOS (Aura) ---
+// --- DATA: 5 Entidades para mapear tus 5 Widgets ---
 const PANELS_DATA = [
-  { id: '01', title: 'AURA VISUAL', description: 'Experiencias inmersivas impulsadas por WebGL y renderizado en tiempo real.' },
-  { id: '02', title: 'NEURO MARKETING', description: 'Arquitectura de conversión basada en micro-interacciones psicológicas.' },
-  { id: '03', title: 'VOID AI TRACKING', description: 'Modelos predictivos y análisis de comportamiento integrados en el core.' }
+  { id: 'AV', title: 'AURA VISUAL', description: 'Experiencias inmersivas impulsadas por WebGL y renderizado en tiempo real.' },
+  { id: 'MK', title: 'NEURO MARKETING', description: 'Arquitectura de conversión basada en micro-interacciones psicológicas.' },
+  { id: 'AI', title: 'VOID AI TRACKING', description: 'Modelos predictivos y análisis de comportamiento en el DOM invisible.' },
+  { id: 'BR', title: 'BRUTALIST BRANDING', description: 'Identidades visuales que no siguen tendencias, las destruyen y las crean.' },
+  { id: 'EV', title: 'EVENT HORIZON', description: 'Despliegues digitales a escala masiva para lanzamientos disruptivos.' }
 ];
 
-// --- COMPONENTE INTERNO: EL PANEL DE INFORMACIÓN ---
 function InfoPanel({ data }: { data: any }) {
   return (
     <div className="flex flex-col items-center text-center space-y-6">
@@ -37,10 +37,10 @@ function InfoPanel({ data }: { data: any }) {
   );
 }
 
-// --- RIG DE CÁMARA ---
 function CameraRig() {
   const scroll = useScroll();
   useFrame((state) => {
+    // La cámara converge al centro absoluto (Y:0) y se acerca (Z:28)
     const targetY = THREE.MathUtils.lerp(12, 0, scroll.offset);
     const targetZ = THREE.MathUtils.lerp(45, 28, scroll.offset); 
     const targetRotX = THREE.MathUtils.lerp(-Math.PI / 10, 0, scroll.offset);
@@ -53,38 +53,35 @@ function CameraRig() {
 }
 
 export default function SceneManager() {
+  // 🧠 ESTADO MAESTRO: La telepatía entre WebGL y HTML
+  const [activeIndex, setActiveIndex] = useState(0);
+
   return (
     <group>
-      {/* 1. Iluminación */}
       <ambientLight intensity={0.6} />
       <spotLight position={[0, 20, 20]} angle={0.5} penumbra={0.8} intensity={2.5} color="#8b5cf6" />
       <pointLight position={[0, -5, -15]} intensity={2} color="#4c1d95" distance={60} decay={2} />
 
-      {/* 2. Controladores */}
       <CameraRig />
 
-      {/* 3. La Rueda 3D */}
+      {/* Inyectamos el estado a la Rueda */}
       <group position={[0, 0, 0]}>
-        <SystemCore />
+        <SystemCore activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
       </group>
 
-      {/* 4. Capa HTML Sincronizada */}
       <Scroll html style={{ width: '100vw' }}>
         <div className="w-full relative pointer-events-none">
-          {/* Espaciador para la entrada cinematográfica */}
-          <div className="h-[120vh] w-full" />
+          {/* Espacio vacío durante el zoom (Página 1 y mitad de la 2) */}
+          <div className="h-[150vh] w-full" />
 
-          {/* Mapeo de paneles de texto */}
-          {PANELS_DATA.map((panel) => (
-            <div 
-              key={panel.id} 
-              className="h-[100vh] flex items-center justify-center w-full px-4 mb-[20vh] pointer-events-auto"
-            >
-              <InfoPanel data={panel} />
-            </div>
-          ))}
-
-          {/* Espacio final */}
+          {/* El contenido aparece dinámicamente según el widget enfocado */}
+          <div className="h-[100vh] flex items-center justify-center w-full px-4 pointer-events-auto">
+             {/* Animación CSS sutil mediante key (fuerza re-render visual al cambiar índice) */}
+             <div key={activeIndex} className="animate-fade-in-up">
+               <InfoPanel data={PANELS_DATA[activeIndex]} />
+             </div>
+          </div>
+          
           <div className="h-[50vh] w-full" />
         </div>
       </Scroll>
