@@ -5,8 +5,15 @@ import { useScroll, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import SystemCore from './ServiceWheelContent';
 
-// 🧠 DATA DEL HUD DESACOPLADA (Cero dependencias externas)
-const HUD_DATA = [
+// 🧠 INTERFACES PARA TIPADO ESTRICTO
+interface HUDItem {
+  id: string;
+  title: string;
+  color: string;
+  metrics: string[];
+}
+
+const HUD_DATA: HUDItem[] = [
   { id: 'av', title: 'VISUAL ENGINE', color: '#ff1493', metrics: ["FREQ: 440Hz", "RENDER: WEBGL", "GL_LAYER: ACTIVE"] },
   { id: 'mk', title: 'NEURO MKT', color: '#4169e1', metrics: ["BIAS: DETECTED", "CTR_PROJ: 12%", "NEURO: SYNC"] },
   { id: 'ai', title: 'AI CORE', color: '#00fa9a', metrics: ["NODES: 1024", "LATENCY: 2ms", "PREDICT: 98%"] },
@@ -18,13 +25,11 @@ function GlobalHUDOverlay({ activeIndex }: { activeIndex: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scroll = useScroll();
   
-  // Protección balística: Si activeIndex falla, usamos el índice 0 como fallback
   const currentData = HUD_DATA[activeIndex] || HUD_DATA[0];
 
   useFrame(() => {
     if (!containerRef.current) return;
     
-    // Aparece del 40% al 70% del scroll
     const progress = scroll.offset;
     let opacity = 0;
     if (progress > 0.4) {
@@ -59,7 +64,7 @@ function GlobalHUDOverlay({ activeIndex }: { activeIndex: number }) {
 
           <div className="flex justify-between items-end w-full">
             <div className="flex flex-col space-y-4 bg-black/40 backdrop-blur-md p-6 border-l-2" style={{ borderColor: currentData.color }}>
-              {currentData.metrics.map((m: string, i: number) => {
+              {currentData.metrics.map((m, i) => {
                 const [label, value] = m.split(':');
                 return (
                   <div key={i} className="flex justify-between items-center w-48 border-b border-white/10 pb-2">
@@ -92,4 +97,35 @@ function CameraRig() {
   const scroll = useScroll();
   useFrame((state) => {
     const zoomProgress = Math.min(scroll.offset * 2, 1);
-    const targetY
+    
+    // Y: 12 -> 6.5 | Z: 45 -> 26.5
+    const targetY = THREE.MathUtils.lerp(12, 6.5, zoomProgress);
+    const targetZ = THREE.MathUtils.lerp(45, 26.5, zoomProgress); 
+    const targetRotX = THREE.MathUtils.lerp(-Math.PI / 10, 0, zoomProgress);
+    
+    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, targetY, 0.1);
+    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, 0.1);
+    state.camera.rotation.x = THREE.MathUtils.lerp(state.camera.rotation.x, targetRotX, 0.1);
+  });
+  return null;
+}
+
+export default function SceneManager() {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  return (
+    <group>
+      <ambientLight intensity={0.6} />
+      <spotLight position={[0, 20, 20]} angle={0.5} penumbra={0.8} intensity={2.5} color="#8b5cf6" />
+      <pointLight position={[0, -5, -15]} intensity={2} color="#4c1d95" distance={60} decay={2} />
+
+      <CameraRig />
+
+      <group position={[0, 0, 0]}>
+        <SystemCore activeIndex={activeIndex} setActiveIndex={setActiveIndex} />
+      </group>
+
+      <GlobalHUDOverlay activeIndex={activeIndex} />
+    </group>
+  );
+}
