@@ -17,7 +17,7 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
     // Iniciar arrastre
     const handleDown = (e: any) => {
         if (!isActive) return;
-        e.stopPropagation(); // 🚀 BLOQUEA EL GIRO DE LA RUEDA
+        e.stopPropagation(); 
         e.target.setPointerCapture(e.pointerId);
         isDragging.current = true;
         lastPointer.current.set(e.clientX, e.clientY);
@@ -31,7 +31,6 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
         const dx = e.clientX - lastPointer.current.x;
         const dy = e.clientY - lastPointer.current.y;
 
-        // Sensibilidad líquida adaptada al iPad
         const sens = 0.008;
         velocity.current.lerp(new THREE.Vector2(dx * sens, dy * sens), 0.2);
 
@@ -44,33 +43,32 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
     };
 
     useFrame((state) => {
-        if (!groupRef.current) return;
+        // 🚀 CORTAFUEGOS 1: PARADA DE MOTOR FÍSICO
+        // Si el panel gira hacia atrás, congelamos todos los cálculos de cuaterniones, 
+        // inercias y flotación. El iPad descansa.
+        if (!groupRef.current || !isActive) return;
 
         if (velocity.current.length() > 0.0005) {
-            // Eje de rotación perpendicular al movimiento (Omnidireccional)
             const axis = new THREE.Vector3(velocity.current.y, velocity.current.x, 0).normalize();
             const angle = velocity.current.length();
             
             const incrementalQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
             quaternion.current.multiplyQuaternions(incrementalQuat, quaternion.current);
             
-            // Fricción suave (Inercia)
             if (!isDragging.current) {
                 velocity.current.multiplyScalar(0.95);
             }
         }
 
-        // Aplicamos la rotación con suavizado tipo "mercurio"
         groupRef.current.quaternion.slerp(quaternion.current, 0.15);
 
-        // Flotación constante
         const t = state.clock.getElapsedTime();
         groupRef.current.position.y = Math.sin(t * 0.4) * 0.1;
     });
 
     return (
         <group ref={groupRef}>
-            {/* 🎯 EL COLISIONADOR: Una esfera invisible que captura TODO el toque */}
+            {/* El colisionador ya estaba protegido por la lógica de eventos */}
             <mesh 
                 onPointerDown={handleDown}
                 onPointerMove={handleMove}
@@ -81,9 +79,12 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
 
-            <Environment preset="city" />
+            {/* 🚀 CORTAFUEGOS 2: APAGADO DE REFLEJOS HD */}
+            {/* Calcular la refracción en la capa "transmission" es carísimo. 
+                Si no estamos frente al panel, quitamos el Environment para ahorrar GPU. */}
+            {isActive && <Environment preset="city" />}
             
-            {/* JOYERÍA 3D */}
+            {/* JOYERÍA 3D (Intacta) */}
             <mesh scale={1.5}>
                 <icosahedronGeometry args={[1, 0]} />
                 <meshStandardMaterial color="#c5a059" metalness={1} roughness={0.05} emissive="#c5a059" emissiveIntensity={0.2} />
@@ -107,7 +108,7 @@ function LuxuryGeometry({ isActive }: { isActive: boolean }) {
 
 export default function EventsWidget({ isActive }: { isActive: boolean }) {
     
-    // FONDO CLARO (Perla de alto rendimiento)
+    // FONDO CLARO (Generado una sola vez, muy eficiente)
     const pearlTexture = useMemo(() => {
         const canvas = document.createElement('canvas');
         canvas.width = 1024; canvas.height = 1024;
@@ -127,22 +128,26 @@ export default function EventsWidget({ isActive }: { isActive: boolean }) {
 
     return (
         <group>
-            {/* LUCES */}
+            {/* LUCES: Optimizadas por la intensidad 0 de tu código */}
             <pointLight position={[5, 5, 5]} intensity={isActive ? 60 : 0} color="#ffffff" />
             <ambientLight intensity={isActive ? 0.7 : 0} />
 
-            {/* FONDO: No captura eventos para que la rueda pueda girar */}
+            {/* FONDO */}
             <mesh position={[0, 0, 0]}>
                 <planeGeometry args={[16.5, 9.5]} />
                 <meshBasicMaterial map={pearlTexture} transparent opacity={isActive ? 1 : 0.4} />
             </mesh>
 
-            {/* LA JOYA: Sí captura eventos (Z adelantado) */}
             <group position={[0, 0, 1.5]}>
                 <LuxuryGeometry isActive={isActive} />
             </group>
             
-            <ContactShadows position={[0, -4.6, 0]} opacity={isActive ? 0.6 : 0} scale={18} blur={3} color="#c5a059" />
+            {/* 🚀 CORTAFUEGOS 3: DESCONEXIÓN DE SOMBRAS DE CONTACTO */}
+            {/* ContactShadows es un mini-motor de render extra. Ocultarlo completamente 
+                cuando no es activo libera una cantidad masiva de recursos. */}
+            {isActive && (
+                <ContactShadows position={[0, -4.6, 0]} opacity={0.6} scale={18} blur={3} color="#c5a059" />
+            )}
         </group>
     );
 }
