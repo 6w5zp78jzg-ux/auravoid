@@ -13,7 +13,21 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
     start: true,
   });
 
-  // 🚀 LÓGICA DE CENTRADO Y AJUSTE "COVER"
+  // 🚀 CORTAFUEGOS 1: PAUSA DE HARDWARE
+  // Si el panel no está activo, pausamos el vídeo para que el iPad no gaste CPU decodificando
+  useEffect(() => {
+    if (!texture.image) return;
+    
+    if (isActive) {
+      texture.image.play().catch(() => {
+        console.log("Esperando interacción para reproducir");
+      });
+    } else {
+      texture.image.pause();
+    }
+  }, [isActive, texture]);
+
+  // LÓGICA DE CENTRADO Y AJUSTE "COVER" (Tu lógica original intacta)
   useEffect(() => {
     if (texture && texture.image) {
       const video = texture.image;
@@ -22,16 +36,12 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
         const videoAspect = video.videoWidth / video.videoHeight;
         const planeAspect = 16.5 / 9.5;
 
-        // 1. Definimos el punto de pivote en el CENTRO
         texture.center.set(0.5, 0.5);
 
         if (videoAspect > planeAspect) {
-          // El vídeo es más ancho que el marco: recortamos laterales proporcionalmente
-          // Esto "estira" el ancho para que no queden huecos a los lados
           texture.repeat.set(planeAspect / videoAspect, 1);
-          texture.offset.set(0, 0); // Al estar el centro en 0.5, esto lo mantiene en medio
+          texture.offset.set(0, 0);
         } else {
-          // El vídeo es más alto que el marco: recortamos arriba/abajo
           texture.repeat.set(1, videoAspect / planeAspect);
           texture.offset.set(0, 0);
         }
@@ -51,13 +61,13 @@ function CinemaScreen({ videoUrl, isActive }: { videoUrl: string; isActive: bool
 
   return (
     <mesh ref={meshRef}>
-      {/* 📏 El plano debe coincidir exactamente con el marco de la rueda */}
       <planeGeometry args={[16.5, 9.5]} />
       <meshBasicMaterial 
         map={texture} 
         toneMapped={false} 
         transparent 
-        opacity={isActive ? 1 : 0.2} 
+        // Suavizamos la transición de opacidad
+        opacity={isActive ? 1 : 0.1} 
       />
     </mesh>
   );
@@ -87,6 +97,9 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
           width: '800px',
           height: '500px',
           pointerEvents: 'none',
+          // 🚀 CORTAFUEGOS 2: OCULTACIÓN TOTAL
+          // Usamos display: none para que el navegador ignore este HTML si no es activo
+          display: isActive ? 'block' : 'none',
           opacity: isActive ? 1 : 0,
           transition: 'opacity 0.6s ease',
         }}
@@ -100,7 +113,8 @@ export default function AudiovisualWidget({ isActive }: { isActive: boolean }) {
 
           {/* INDICADOR REC */}
           <div className="absolute top-12 left-12 flex items-center gap-4 bg-black/40 px-6 py-2 rounded-sm backdrop-blur-md border border-white/10">
-            <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse shadow-[0_0_15px_#ef4444]" />
+            {/* Solo animamos el pulso si está activo para ahorrar ciclos */}
+            <div className={`w-4 h-4 bg-red-600 rounded-full shadow-[0_0_15px_#ef4444] ${isActive ? 'animate-pulse' : ''}`} />
             <span className="text-2xl font-bold text-red-500 tracking-tighter">REC 00:12:45:22</span>
           </div>
 
