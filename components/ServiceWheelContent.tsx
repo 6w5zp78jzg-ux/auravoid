@@ -3,9 +3,7 @@ import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
-import { useLanguage } from './Providers';
 
-// Importamos los widgets pero no los usamos todavía
 import AudiovisualWidget from './AudiovisualWidget';
 import MarketingWidget from './MarketingWidget';
 import IARobotTracker from './IARobotTracker';
@@ -13,7 +11,7 @@ import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
 interface ServiceWheelProps {
-  wheelDataRef?: React.MutableRefObject<{ rotation: number; activeIndex: number }>;
+  wheelDataRef: React.MutableRefObject<{ rotation: number; activeIndex: number }>;
 }
 
 const WIDGETS_DATA = [
@@ -36,7 +34,6 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
 
    const handlePointerDown = (e: any) => {
        e.stopPropagation();
-       if(e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
        isDragging.current = true;
        previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
    };
@@ -50,10 +47,7 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        previousX.current = currentX;
    };
 
-   const handlePointerUp = (e: any) => {
-       isDragging.current = false;
-       if(e.target.releasePointerCapture) e.target.releasePointerCapture(e.pointerId);
-   };
+   const handlePointerUp = () => { isDragging.current = false; };
 
    useFrame(() => {
        if (!groupRef.current) return;
@@ -69,7 +63,8 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
        if (index < 0) index += 5;
        if (index !== activeIndex) setActiveIndex(index);
 
-       if (wheelDataRef) {
+       // Actualizamos el REF para que el cilindro lo lea
+       if (wheelDataRef.current) {
            wheelDataRef.current.rotation = rotationRef.current;
            wheelDataRef.current.activeIndex = index;
        }
@@ -80,10 +75,10 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
    return (
        <group 
           ref={groupRef} 
-          position={[0, 0, 0]}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
        >
            <mesh visible={false}>
                <cylinderGeometry args={[15, 15, 10, 16]} />
@@ -96,7 +91,6 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
 
                return (
                    <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
-                       
                        <mesh>
                            <boxGeometry args={[16.5, 9.5, 0.4]} />
                            <meshStandardMaterial color="#050505" metalness={1} roughness={0.5} />
@@ -104,16 +98,8 @@ export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps)
                        </mesh>
 
                        <group position={[0, 0, 0.3]}>
-                           {/* 🔥 PRUEBA DE FUEGO: APAGAMOS LOS WIDGETS 🔥 */}
-                           {/* <widget.Component isActive={isFront} /> */}
-                           
-                           {/* En su lugar ponemos un recuadro de color para verificar que la rueda gira */}
-                           <mesh>
-                               <planeGeometry args={[5, 5]} />
-                               <meshBasicMaterial color={widget.color} wireframe={true} />
-                           </mesh>
+                           <widget.Component isActive={isFront} />
                        </group>
-
                    </group>
                );
            })}
