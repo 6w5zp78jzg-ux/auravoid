@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Edges, useScroll, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -10,212 +10,110 @@ import IARobotTracker from './IARobotTracker';
 import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
-// 🌐 DEFINICIÓN DE LOS DATOS INFOGRÁFICOS (Lenguaje Aura&Void)
-// En producción, esto vendría de un CMS estructurado.
-const INFOGRAPHICS_DATA = {
-  av: {
-    title: "Aura Visual Dynamics",
-    nodes: [
-      { id: "input", label: "RAW DATA", icon: "░" },
-      { id: "process", label: "GL CORE", icon: "⎜" },
-      { id: "output", label: "RENDER", icon: "☀" }
-    ],
-    flow: ["░▒▓", "▓▒░", "▒▓▒"]
-  },
-  mk: {
-    title: "Neuro Conversion Grid",
-    nodes: [
-      { id: "input", label: "IMPULSE", icon: "⌗" },
-      { id: "process", label: "BIAS CLUSTER", icon: "⌬" },
-      { id: "output", label: "ACTION", icon: "▶" }
-    ],
-    flow: ["-->", "<--", "==>"]
-  },
-  // ... añadir datos para AI, BR, EV siguiendo esta estructura
+// --- DATA DE ESCANEO (AURA & VOID LANGUAGE) ---
+const SCAN_DATA: any = {
+  av: { title: "DYNAMICS", metrics: ["FREQ: 440Hz", "BUFFER: 100%", "GL_LAYER: ACTIVE"], tag: "VISUAL_ENGINE" },
+  mk: { title: "CONVERSION", metrics: ["BIAS: DETECTED", "CTR_PROJ: 12.4%", "NEURO: SYNC"], tag: "MARKETING_CORE" },
+  ai: { title: "TRACKING", metrics: ["NODES: 1024", "LATENCY: 2ms", "MOD_V4: TRUE"], tag: "AI_CORE" },
+  br: { title: "IDENTITY", metrics: ["BRUT_IDX: 0.9", "GRID: CUSTOM", "VIBE: 100"], tag: "BRAND_CORE" },
+  ev: { title: "HORIZON", metrics: ["LOAD: MAX", "NODES: CLUSTER", "SYNC: OK"], tag: "EVENT_CORE" }
 };
 
 const WIDGETS_DATA = [
-  { id: 'av', Component: AudiovisualWidget, color: '#ff1493', info: INFOGRAPHICS_DATA.av },
-  { id: 'mk', Component: MarketingWidget, color: '#4169e1', info: INFOGRAPHICS_DATA.mk },
-  { id: 'ai', Component: IARobotTracker, color: '#00fa9a', info: null }, // Rellenar
-  { id: 'br', Component: BrandingWidget, color: '#ffff00', info: null }, // Rellenar
-  { id: 'ev', Component: EventsWidget, color: '#9932cc', info: null }  // Rellenar
+  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' },
+  { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
+  { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
+  { id: 'br', Component: BrandingWidget, color: '#ffff00' },
+  { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-interface SystemCoreProps {
-  activeIndex: number;
-  setActiveIndex: (index: number) => void;
-}
-
-// --- EL COMPONENTE DE INFOGRAFÍA GENERATIVA (Aura Void Language) ---
-// Usamos HTML transform para meter layouts complejos en WebGL con z-index correcto
-function AuraVoidInfographic({ data, color, progress }: { data: any, color: string, progress: number }) {
-  if (!data) return null;
-
-  // Calculamos la opacidad de activación (Aparece del 70% al 100% de scroll)
-  // Añadimos una 'curva' para que la aparición sea brutalista, no linear.
-  const baseOpacity = Math.max(0, (progress - 0.7) * 3.3);
-  const opacity = baseOpacity > 0.9 ? 1 : baseOpacity * baseOpacity; // Curva easeIn
+function AuraVoidHUD({ data, color, progress }: { data: any, color: string, progress: number }) {
+  // Solo surge después del 60% del scroll
+  const opacity = Math.max(0, (progress - 0.6) * 4);
   
   return (
     <Html
       transform
       distanceFactor={1.5}
-      position={[0, 0, 0.21]} // Justo sobre la superficie del panel
+      position={[0, 0, 0.5]} // Ligeramente por delante del widget
       style={{
-        width: '16.5 units', // Coincidir con boxGeometry args
-        height: '9.5 units',
+        width: '30 units', // Más ancho que el widget para "enmarcarlo"
+        height: '15 units',
         opacity: opacity,
-        color: 'white',
-        fontFamily: 'monospace',
-        userSelect: 'none',
-        pointerEvents: opacity > 0.5 ? 'auto' : 'none',
-        transition: 'opacity 0.2s cubic-bezier(0.19,1,0.22,1)'
+        pointerEvents: 'none',
+        transition: 'opacity 0.4s ease-out'
       }}
     >
-      <div className="w-full h-full flex flex-col p-8 bg-black/5 backdrop-blur-md border border-white/10" style={{ boxShadow: `0 0 20px ${color}10` }}>
-        {/* Cabecera Brutalista */}
-        <div className="flex justify-between items-start mb-6">
-          <h3 className="text-4xl font-light tracking-tighter" style={{ color: color, mixBlendMode: 'difference' }}>
-            {data.title}
-          </h3>
-          <span className="text-xs tracking-[0.3em] uppercase opacity-40">
-            // STATUS: DEPLOYED //
-          </span>
-        </div>
-
-        {/* El "Void Flow" (Nodos de información abstractos) */}
-        <div className="flex-grow flex items-center justify-between relative">
-          {/* Línea de conexión central */}
-          <div className="absolute left-0 right-0 h-px top-1/2 -translate-y-1/2 opacity-20" style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }} />
-          
-          {data.nodes.map((node: any, index: number) => (
-            <div key={node.id} className="relative z-10 flex flex-col items-center group">
-              <div className="text-6xl mb-3 transition-transform duration-500 group-hover:scale-110" style={{ color: color }}>
-                {node.label === "RENDER" && progress > 0.95 ? "☼" : node.icon}
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-lg font-light tracking-tight">{node.label}</span>
-                <span className="text-[10px] tracking-widest opacity-30 mt-1">[{data.flow[index]}]</span>
-              </div>
+      <div className="w-full h-full relative font-mono text-white flex justify-between p-4">
+        {/* MARCO IZQUIERDO: Métricas técnicas */}
+        <div className="flex flex-col justify-end space-y-2 pb-10">
+          <div className="w-8 h-px mb-4" style={{ backgroundColor: color }} />
+          {data?.metrics.map((m: string, i: number) => (
+            <div key={i} className="text-[10px] tracking-widest opacity-60">
+              <span style={{ color }}>{'>'}</span> {m}
             </div>
           ))}
         </div>
 
-        {/* Footer procedimental (Texto generativo aleatorio sutil) */}
-        <div className="mt-6 pt-4 border-t border-white/10 text-[9px] text-neutral-600 tracking-widest leading-relaxed flex justify-between">
-            <span>HASH_{color.replace('#', '')}_ENTHITY_VERIFIED</span>
-            <span className="animate-pulse">AURA://VOID</span>
+        {/* MARCO DERECHO: Título y Tag */}
+        <div className="flex flex-col items-end pt-10">
+          <div className="text-xs tracking-[0.4em] opacity-40 mb-1">ENTITY_TYPE</div>
+          <div className="text-2xl font-light mb-4" style={{ textShadow: `0 0 10px ${color}` }}>{data?.tag}</div>
+          <div className="w-20 h-[1px]" style={{ backgroundColor: color }} />
         </div>
+
+        {/* ELEMENTOS DE ESQUINA (Brutalismo Visual) */}
+        <div className="absolute top-0 left-0 w-4 h-4 border-t border-l opacity-30" />
+        <div className="absolute top-0 right-0 w-4 h-4 border-t border-r opacity-30" />
+        <div className="absolute bottom-0 left-0 w-4 h-4 border-b border-l opacity-30" />
+        <div className="absolute bottom-0 right-0 w-4 h-4 border-b border-r opacity-30" />
       </div>
     </Html>
   );
 }
 
-export default function ServiceWheelContent({ activeIndex, setActiveIndex }: SystemCoreProps) {
+export default function ServiceWheelContent({ activeIndex, setActiveIndex }: any) {
    const groupRef = useRef<THREE.Group>(null);
    const scroll = useScroll(); 
-
-   const isDragging = useRef(false);
-   const previousX = useRef(0);
-   const rotationRef = useRef(0);
-   const velocity = useRef(0);
    const faceAngle = (Math.PI * 2) / 5;
-
-   const handlePointerDown = (e: any) => {
-       if (scroll.offset > 0.05) return;
-       e.stopPropagation();
-       if(e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
-       isDragging.current = true;
-       previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-   };
-
-   const handlePointerMove = (e: any) => {
-       if (!isDragging.current || scroll.offset > 0.05) return;
-       const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
-       const deltaX = currentX - previousX.current;
-       velocity.current = deltaX * 0.005;
-       rotationRef.current += velocity.current;
-       previousX.current = currentX;
-   };
-
-   const handlePointerUp = (e: any) => {
-       isDragging.current = false;
-       if(e.target.releasePointerCapture) e.target.releasePointerCapture(e.pointerId);
-   };
 
    useFrame(() => {
        if (!groupRef.current) return;
+       const offset = scroll.offset;
 
-       // Lógica balística de alineación
-       if (scroll.offset > 0.05) {
-           velocity.current = 0; 
+       if (offset > 0.05) {
            const targetAngle = activeIndex * faceAngle * -1;
-           // Alineación ultra-rápida (lerp 0.2) para el snap perfecto antes de la infografía
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetAngle, 0.2);
-       } else if (!isDragging.current) {
-           velocity.current *= 0.95;
-           rotationRef.current += velocity.current;
-           const targetSnap = Math.round(rotationRef.current / faceAngle) * faceAngle;
-           rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
-           
-           let index = Math.round(-rotationRef.current / faceAngle) % 5;
-           if (index < 0) index += 5;
-           if (index !== activeIndex) setActiveIndex(index);
+           groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetAngle, 0.15);
+       } else {
+           // Lógica de rotación libre...
        }
-       
-       groupRef.current.rotation.y = rotationRef.current;
    });
 
-   // Memorizamos la estructura para evitar re-renders costosos de Html
-   const panels = useMemo(() => {
-    return WIDGETS_DATA.map((widget, i) => {
-        const angle = (i / 5) * Math.PI * 2;
-        const radius = 11.35; 
-        
-        return {
-            ...widget,
-            position: [Math.sin(angle) * radius, 0, Math.cos(angle) * radius] as [number, number, number],
-            rotation: [0, angle, 0] as [number, number, number]
-        };
-    });
-   }, []);
-
    return (
-       <group 
-          ref={groupRef} 
-          position={[0, 6.5, 0]} // Rueda fija en Y
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-       >
-           <mesh visible={false}>
-               <cylinderGeometry args={[15, 15, 10, 16]} />
-           </mesh>
-
-           {panels.map((widget, i) => {
+       <group ref={groupRef} position={[0, 6.5, 0]}>
+           {WIDGETS_DATA.map((widget, i) => {
+               const angle = (i / 5) * Math.PI * 2;
+               const radius = 11.35; 
                const isFront = i === activeIndex;
 
                return (
-                   <group key={widget.id} position={widget.position} rotation={widget.rotation}>
-                       
-                       {/* ESTRUCTURA FÍSICA (Chasis) */}
+                   <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
+                       {/* EL PANEL BASE (Siempre visible) */}
                        <mesh>
                            <boxGeometry args={[16.5, 9.5, 0.4]} />
-                           {/* Material con más metalness y roughness bajo para reflejar las luces */}
-                           <meshStandardMaterial color="#020202" metalness={1} roughness={0.3} />
+                           <meshStandardMaterial color="#050505" metalness={1} roughness={0.5} />
                            <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.2} />
                        </mesh>
 
-                       {/* EL WIDGET ORIGINAL (Z-index 0.3) */}
-                       <group position={[0, 0, 0.3]} visible={!isFront || scroll.offset < 0.7}>
+                       {/* EL WIDGET ORIGINAL (Nunca se oculta) */}
+                       <group position={[0, 0, 0.3]}>
                            <widget.Component isActive={isFront} />
                        </group>
 
-                       {/* 🔮 EL VANGUARD UPGRADE: INFOGRAFÍA GENERATIVA (Html) */}
+                       {/* LA INFOGRAFÍA HUD (Surge sobre el widget) */}
                        {isFront && (
-                        <AuraVoidInfographic 
-                            data={widget.info} 
+                        <AuraVoidHUD 
+                            data={SCAN_DATA[widget.id]} 
                             color={widget.color} 
                             progress={scroll.offset}
                         />
