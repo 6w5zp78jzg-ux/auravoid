@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- 1. OBJETIVOS TÁCTICOS (Con animación de pulso) ---
+// --- 1. OBJETIVOS TÁCTICOS ---
 function TacticalTargets({ isActive }: { isActive: boolean }) {
     const groupRef = useRef<THREE.Group>(null);
     const targets = [
@@ -27,17 +27,16 @@ function TacticalTargets({ isActive }: { isActive: boolean }) {
         <group ref={groupRef} visible={isActive}>
             {targets.map((t, i) => (
                 <group key={i} position={t.pos as any}>
-                    {/* Rombo táctico */}
                     <mesh rotation={[0, 0, Math.PI / 4]}>
                         <planeGeometry args={[0.25, 0.25]} />
                         <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
                     </mesh>
+                    {/* Quitamos la carga de fuente externa para asegurar visibilidad */}
                     <Text 
                         position={[0.4, 0, 0]} 
                         fontSize={0.14} 
                         color="#00ffff" 
                         anchorX="left"
-                        font="/fonts/GeistMono-Bold.woff" // Tu fuente original
                     >
                         {`NODE_${t.id}`}
                     </Text>
@@ -47,7 +46,7 @@ function TacticalTargets({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 2. BARRAS DE DATOS (Infografía fluida) ---
+// --- 2. BARRAS DE DATOS ---
 function PulseBars({ isActive }: { isActive: boolean }) {
     const barsRef = useRef<THREE.Group>(null);
 
@@ -71,7 +70,7 @@ function PulseBars({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 3. CONTENIDO PRINCIPAL DEL WIDGET ---
+// --- 3. CONTENIDO PRINCIPAL ---
 function WidgetContent({ isActive }: { isActive: boolean }) {
     const sweepRef = useRef<THREE.Mesh>(null);
     const contentRef = useRef<THREE.Group>(null);
@@ -79,7 +78,6 @@ function WidgetContent({ isActive }: { isActive: boolean }) {
     const [hex, setHex] = useState('0x000000');
     const [accuracy, setAccuracy] = useState(99.6);
 
-    // Sistema de Siesta para los datos
     useEffect(() => {
         if (!isActive) return;
         const interval = setInterval(() => {
@@ -89,12 +87,10 @@ function WidgetContent({ isActive }: { isActive: boolean }) {
         return () => clearInterval(interval);
     }, [isActive]);
 
-    // Barrido del radar y Parallax
     useFrame((state, delta) => {
         if (!isActive) return;
         if (sweepRef.current) sweepRef.current.rotation.z -= delta * 2.5;
         
-        // Movimiento sutil siguiendo el ratón (Parallax)
         if (contentRef.current) {
             contentRef.current.position.x = THREE.MathUtils.lerp(contentRef.current.position.x, state.mouse.x * 0.4, 0.1);
             contentRef.current.position.y = THREE.MathUtils.lerp(contentRef.current.position.y, state.mouse.y * 0.2, 0.1);
@@ -103,55 +99,52 @@ function WidgetContent({ isActive }: { isActive: boolean }) {
 
     return (
         <group>
-            {/* FONDO SÓLIDO (Para tapar el cilindro) */}
+            {/* FONDO SÓLIDO */}
             <mesh position={[0, 0, -0.05]}>
                 <planeGeometry args={[16.5, 9.5]} />
                 <meshBasicMaterial color="#01060b" />
             </mesh>
 
-            {/* TODO LO DEMÁS SOLO SE RENDERIZA SI ESTÁ ACTIVO (Hibernación de GPU) */}
             <group ref={contentRef} visible={isActive}>
                 
-                {/* REJILLA MILIMÉTRICA NATIVA (Inmune a fallos, 0 costo) */}
+                {/* REJILLA */}
                 <group position={[0, 0, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
                     <gridHelper args={[20, 30, "#00ffff", "#00ffff"]} material-transparent material-opacity={0.08} />
                 </group>
 
-                {/* RADAR: Anillos planos cortantes (ringGeometry) */}
+                {/* RADAR */}
                 {[2, 3.5, 5].map((r, i) => (
                     <mesh key={i} position={[0, 0, 0.02]}>
-                        {/* Radio interno, radio externo, segmentos */}
                         <ringGeometry args={[r, r + 0.02, 64]} />
                         <meshBasicMaterial color="#00ffff" transparent opacity={0.2} side={THREE.DoubleSide} />
                     </mesh>
                 ))}
 
-                {/* BARRIDO DE LUZ DEL RADAR */}
+                {/* BARRIDO */}
                 <mesh ref={sweepRef} position={[0, 0, 0.03]}>
                     <planeGeometry args={[4.8, 0.06]} />
                     <meshBasicMaterial color="#00ffff" transparent opacity={0.6} />
                     <primitive object={new THREE.Object3D()} position={[-2.4, 0, 0]} />
                 </mesh>
 
-                {/* ANIMACIONES */}
                 <TacticalTargets isActive={isActive} />
                 <PulseBars isActive={isActive} />
 
-                {/* TEXTOS (SDF) */}
+                {/* TEXTOS (Sin fuentes personalizadas que bloqueen el render) */}
                 <group position={[-7.8, 4.1, 0.2]}>
-                    <Text fontSize={0.45} color="#00ffff" anchorX="left" font="/fonts/GeistMono-Bold.woff">
+                    <Text fontSize={0.45} color="#00ffff" anchorX="left">
                         NEURAL_MARKETING_OS
                     </Text>
-                    <Text position={[0, -0.6, 0]} fontSize={0.18} color="#ffffff" anchorX="left" fillOpacity={0.6} font="/fonts/GeistMono-Bold.woff">
+                    <Text position={[0, -0.6, 0]} fontSize={0.18} color="#ffffff" anchorX="left" fillOpacity={0.6}>
                         {`SYS_ACQUISITION: ACTIVE\nHASH_LINK: ${hex}`}
                     </Text>
                 </group>
 
                 <group position={[7.8, -3.8, 0.2]}>
-                    <Text fontSize={0.9} color="#ffffff" anchorX="right" font="/fonts/GeistMono-Bold.woff">
+                    <Text fontSize={0.9} color="#ffffff" anchorX="right">
                         {`${accuracy.toFixed(1)}%`}
                     </Text>
-                    <Text position={[0, -0.6, 0]} fontSize={0.15} color="#00ffff" anchorX="right" fillOpacity={0.5} font="/fonts/GeistMono-Bold.woff">
+                    <Text position={[0, -0.6, 0]} fontSize={0.15} color="#00ffff" anchorX="right" fillOpacity={0.5}>
                         CONVERSION_ACCURACY
                     </Text>
                 </group>
@@ -160,7 +153,7 @@ function WidgetContent({ isActive }: { isActive: boolean }) {
     );
 }
 
-// --- 4. EXPORTACIÓN CON ESCUDO ANTI-CRASH ---
+// --- 4. EXPORTACIÓN ---
 export default function MarketingWidget({ isActive }: { isActive: boolean }) {
     return (
         <Suspense fallback={
