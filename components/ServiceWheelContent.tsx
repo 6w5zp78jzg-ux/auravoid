@@ -1,10 +1,10 @@
 'use client';
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
+import { Edges, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
-// Importa tus widgets. Asegúrate de que las rutas sean correctas.
+// Asegúrate de que las rutas a tus widgets sean correctas
 import AudiovisualWidget from './AudiovisualWidget';
 import MarketingWidget from './MarketingWidget';
 import IARobotTracker from './IARobotTracker';
@@ -29,16 +29,24 @@ export default function ServiceWheelContent({ wheelDataRef }: any) {
    const velocity = useRef(0);
    const faceAngle = (Math.PI * 2) / 5;
 
+   // 📐 Vanguard Fix: Un radio de 22 evita que los paneles de 24 de ancho colisionen
+   const RADIUS = 22; 
+
    const handlePointerDown = (e: any) => {
        e.stopPropagation();
        if (e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId);
        isDragging.current = true;
-       previousX.current = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+       
+       // Extracción segura de coordenadas en R3F
+       const nativeEvent = e.nativeEvent;
+       previousX.current = nativeEvent.touches ? nativeEvent.touches[0].clientX : nativeEvent.clientX;
    };
 
    const handlePointerMove = (e: any) => {
        if (!isDragging.current) return;
-       const currentX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+       const nativeEvent = e.nativeEvent;
+       const currentX = nativeEvent.touches ? nativeEvent.touches[0].clientX : nativeEvent.clientX;
+       
        const deltaX = currentX - previousX.current;
        velocity.current = deltaX * 0.008; 
        rotationRef.current += velocity.current;
@@ -63,7 +71,7 @@ export default function ServiceWheelContent({ wheelDataRef }: any) {
        if (index < 0) index += 5;
        if (index !== activeIndex) setActiveIndex(index);
 
-       if (wheelDataRef.current) {
+       if (wheelDataRef && wheelDataRef.current) {
            wheelDataRef.current.rotation = rotationRef.current;
            wheelDataRef.current.activeIndex = index;
        }
@@ -71,39 +79,60 @@ export default function ServiceWheelContent({ wheelDataRef }: any) {
    });
 
    return (
-       <group 
-          ref={groupRef} 
-          onPointerDown={handlePointerDown} 
-          onPointerMove={handlePointerMove} 
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-       >
-           {/* Escudo invisible gigante para asegurar el tacto */}
-           <mesh visible={false}>
-               <sphereGeometry args={[25, 16, 16]} />
-           </mesh>
+       <>
+           {/* ILUMINACIÓN Y ENTORNO: Sin esto, los materiales PBR son invisibles */}
+           <ambientLight intensity={0.6} />
+           <directionalLight position={[10, 10, 10]} intensity={1.5} />
+           {/* El Environment le da al metal algo que reflejar, haciéndolo fotorrealista */}
+           <Environment preset="city" /> 
 
-           {WIDGETS.map((widget, i) => {
-               const angle = (i / 5) * Math.PI * 2;
-               const radius = 16; // 📐 Radio Wide
-               const isFront = i === activeIndex;
+           <group 
+              ref={groupRef} 
+              onPointerDown={handlePointerDown} 
+              onPointerMove={handlePointerMove} 
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+           >
+               {/* Escudo invisible - Mantenido pero ajustado al nuevo radio */}
+               <mesh visible={false}>
+                   <sphereGeometry args={[RADIUS + 5, 16, 16]} />
+               </mesh>
 
-               return (
-                   <group key={widget.id} position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]} rotation={[0, angle, 0]}>
-                       {/* Chasis */}
-                       <mesh>
-                           <boxGeometry args={[24, 10, 0.4]} />
-                           <meshStandardMaterial color="#050505" metalness={1} roughness={0.5} />
-                           <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.1} />
-                       </mesh>
-                       
-                       {/* Contenido (Widgets Reales) */}
-                       <group position={[0, 0, 0.3]}>
-                           <widget.Component isActive={isFront} />
+               {WIDGETS.map((widget, i) => {
+                   const angle = (i / 5) * Math.PI * 2;
+                   const isFront = i === activeIndex;
+
+                   return (
+                       <group 
+                            key={widget.id} 
+                            position={[Math.sin(angle) * RADIUS, 0, Math.cos(angle) * RADIUS]} 
+                            rotation={[0, angle, 0]}
+                        >
+                           {/* Chasis */}
+                           <mesh>
+                               <boxGeometry args={[24, 10, 0.4]} />
+                               {/* Color ligeramente más claro para apreciar los reflejos del metal */}
+                               <meshStandardMaterial 
+                                    color="#111111" 
+                                    metalness={0.9} 
+                                    roughness={0.3} 
+                                />
+                               <Edges 
+                                    color={widget.color} 
+                                    threshold={15} 
+                                    transparent 
+                                    opacity={isFront ? 1 : 0.2} 
+                                />
+                           </mesh>
+                           
+                           {/* Contenido (Widgets Reales) */}
+                           <group position={[0, 0, 0.3]}>
+                               <widget.Component isActive={isFront} />
+                           </group>
                        </group>
-                   </group>
-               );
-           })}
-       </group>
+                   );
+               })}
+           </group>
+       </>
    );
 }
