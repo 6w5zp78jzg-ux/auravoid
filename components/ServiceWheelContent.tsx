@@ -11,21 +11,21 @@ import IARobotTracker from './IARobotTracker';
 import BrandingWidget from './BrandingWidget';
 import EventsWidget from './EventsWidget';
 
-// 🚀 1. DEFINIMOS LA INTERFAZ PARA EL CHIVATO A TYPESCRIPT
+// 🚀 1. INTERFAZ ACTUALIZADA PARA ACEPTAR EL REF
 interface ServiceWheelProps {
-  onSync?: (rot: number, index: number) => void;
+  wheelDataRef?: React.MutableRefObject<{ rotation: number; activeIndex: number }>;
 }
 
 const WIDGETS_DATA = [
-  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' }, // Rosa Neón
+  { id: 'av', Component: AudiovisualWidget, color: '#ff1493' }, 
   { id: 'mk', Component: MarketingWidget, color: '#4169e1' },
   { id: 'ai', Component: IARobotTracker, color: '#00fa9a' },
   { id: 'br', Component: BrandingWidget, color: '#ffff00' },
   { id: 'ev', Component: EventsWidget, color: '#9932cc' }
 ];
 
-// 🚀 2. LE DECIMOS AL COMPONENTE QUE RECIBA onSync
-export default function ServiceWheelContent({ onSync }: ServiceWheelProps) {
+// 🚀 2. EL COMPONENTE RECIBE LA REFERENCIA
+export default function ServiceWheelContent({ wheelDataRef }: ServiceWheelProps) {
    const groupRef = useRef<THREE.Group>(null);
    const [activeIndex, setActiveIndex] = useState(0);
 
@@ -66,14 +66,14 @@ export default function ServiceWheelContent({ onSync }: ServiceWheelProps) {
            rotationRef.current = THREE.MathUtils.lerp(rotationRef.current, targetSnap, 0.1);
        }
 
-       // Lógica de cálculo de índice original (intacta)
        let index = Math.round(-rotationRef.current / faceAngle) % 5;
        if (index < 0) index += 5;
        if (index !== activeIndex) setActiveIndex(index);
 
-       // 🚀 3. EL CHIVATO: Avisamos al SceneManager 60 veces por segundo
-       if (onSync) {
-           onSync(rotationRef.current, index);
+       // 🚀 3. ESCRIBIMOS EN EL CEREBRO SILENCIOSAMENTE
+       if (wheelDataRef) {
+           wheelDataRef.current.rotation = rotationRef.current;
+           wheelDataRef.current.activeIndex = index;
        }
 
        groupRef.current.rotation.y = rotationRef.current;
@@ -82,7 +82,7 @@ export default function ServiceWheelContent({ onSync }: ServiceWheelProps) {
    return (
        <group 
           ref={groupRef} 
-          position={[0, 6.5, 0]} // Posición Hero
+          position={[0, 0, 0]} // La altura ahora la dicta el SceneManager
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -94,7 +94,6 @@ export default function ServiceWheelContent({ onSync }: ServiceWheelProps) {
 
            {WIDGETS_DATA.map((widget, i) => {
                const angle = (i / 5) * Math.PI * 2;
-               // 📐 ARQUITECTURA MONOLÍTICA PERFECTA (16.5 ancho)
                const radius = 11.35; 
                const isFront = i === activeIndex;
 
@@ -104,7 +103,6 @@ export default function ServiceWheelContent({ onSync }: ServiceWheelProps) {
                        {/* ESTRUCTURA FÍSICA SÓLIDA (Chasis) */}
                        <mesh>
                            <boxGeometry args={[16.5, 9.5, 0.4]} />
-                           {/* Negro Sólido Premium */}
                            <meshStandardMaterial color="#050505" metalness={1} roughness={0.5} />
                            <Edges color={widget.color} threshold={15} transparent opacity={isFront ? 1 : 0.2} />
                        </mesh>
