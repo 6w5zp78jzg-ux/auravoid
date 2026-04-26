@@ -1,43 +1,37 @@
 'use client';
-import React, { useRef, Suspense } from 'react';
+import React, { useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useScroll } from '@react-three/drei';
 import * as THREE from 'three';
 
 import ServiceCylinder from './ServiceCylinder';
 import ServiceWheelContent from './ServiceWheelContent';
 
 export default function SceneManager() {
-  // 🧠 EL CEREBRO DE DATOS
+  const { viewport } = useThree();
   const wheelDataRef = useRef({ rotation: 0, activeIndex: 0 });
 
   return (
-    // 🛡️ EL ESCUDO: Si cualquier archivo hijo (textura, gltf) falla, 
-    // veremos un cubo rojo brillante gigante en lugar de borrar la pantalla.
-    <Suspense fallback={
-        <mesh>
-            <boxGeometry args={[4, 4, 4]} />
-            <meshBasicMaterial color="red" wireframe />
-        </mesh>
-    }>
-        <group>
-          {/* LUZ FUERTE PARA ASEGURARNOS DE QUE SE VE ALGO */}
-          <ambientLight intensity={1} />
-          <pointLight position={[0, 0, 20]} intensity={3} color="#ffffff" />
-          
-          {/* 🚀 EL REACTOR EN EL CENTRO ABSOLUTO (Sin offsets de Y) */}
-          <group position={[0, 0, 0]}>
-            
-            {/* EL CILINDRO (Justo en el centro, un poquito hacia atrás) */}
-            <group position={[0, 0, -2]}> 
-              <ServiceCylinder wheelDataRef={wheelDataRef} />
-            </group>
+    <group position={[0, -viewport.height * 1.5, 0]}>
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} intensity={2} />
 
-            {/* LA RUEDA (Justo en el centro) */}
-            <group position={[0, 0, 0]}>
-              <ServiceWheelContent wheelDataRef={wheelDataRef} />
-            </group>
+      {/* 🎡 LA RUEDA (MAESTRO - NIVEL SUPERIOR) */}
+      <group position={[0, 5, 0]}> 
+        <ServiceWheelContent wheelDataRef={wheelDataRef} />
+      </group>
 
-          </group>
-        </group>
-    </Suspense>
+      {/* 🧪 EL CILINDRO (DETALLE - NIVEL INFERIOR) */}
+      {/* Lo bajamos en Y para que parezca una extensión de la rueda */}
+      <group position={[0, -5, 0]}> 
+        <ServiceCylinder wheelDataRef={wheelDataRef} />
+      </group>
+
+      {/* EFECTO DE CONEXIÓN: Un haz de luz central que une ambos */}
+      <mesh position={[0, 0, 0]}>
+        <cylinderGeometry args={[0.05, 0.05, 20, 8]} />
+        <meshBasicMaterial color="#00ffff" transparent opacity={0.2} />
+      </mesh>
+    </group>
   );
 }
