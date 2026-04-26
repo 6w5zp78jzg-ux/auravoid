@@ -57,7 +57,7 @@ function GlassBanner({ title, isActive }: { title: string, isActive: boolean }) 
         position={[0, 0, 0.2]}
         fontSize={0.8}
         color="#ffffff"
-        font="/fonts/Montserrat-Medium.ttf" // Asegúrate de tener esta fuente en public/fonts
+        font="" // Asegúrate de tener esta fuente en public/fonts
         anchorX="center"
         anchorY="middle"
         outlineWidth={0.02}
