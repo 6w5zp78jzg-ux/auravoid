@@ -81,3 +81,19 @@ canvas {
   user-select: none !important;
   -webkit-user-select: none !important;
 }
+/* En tu globals.css */
+canvas {
+  touch-action: none !important; /* Desactiva el scroll del navegador sobre el 3D */
+  user-select: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Asegúrate de que el overlay no bloquee los clics al 3D */
+.fixed.inset-0 {
+  pointer-events: none !important;
+}
+
+/* Pero que los botones del overlay SÍ funcionen */
+.pointer-events-auto {
+  pointer-events: auto !important;
+}
